@@ -1,0 +1,28 @@
+Source Code:
+
+function foo(value: int): int {
+    let result = 1;
+    for (let i = 2; i <= value; i++)
+        result = result * i;
+    }
+    return result;
+}
+
+IR Graph:
+
+BB.1:
+    0.s32 Parameter 0
+    1.s32 Constant 1
+    2.s32 Constant 2
+    3. Br BB.2
+BB.2:
+    4p.s32 Phi v1, v8       // result
+    5p.s32 Phi v2, v9       // i
+    6.b Compare LE v5, v0
+    7. If v6, BB.3, BB.4
+BB.3:
+    8.s32 Mul v4, v5
+    9.s32 Add v5, v1
+    10. Br BB.2
+BB.4:
+    11.s32 Return v4;

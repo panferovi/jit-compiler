@@ -11,12 +11,13 @@ add_compile_options(-std=c++17 -Wall -Wextra -Werror)
 add_subdirectory(tests)
 
 add_library(jit_compiler STATIC
+    utils/debug.cpp
     ir/graph.cpp
     ir/common.cpp
     ir/ir_builder.cpp
     ir/basic_block.cpp
     ir/instruction.cpp
-    utils/debug.cpp
+    ir/analysis.cpp
 )
 
 target_include_directories(jit_compiler

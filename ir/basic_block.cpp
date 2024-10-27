@@ -26,7 +26,7 @@ void BasicBlock::InsertPhiInst(Instruction *inst)
 /* static */
 BasicBlock *BasicBlock::Create(Graph *graph)
 {
-    auto *bb = new BasicBlock(graph->GenerateBBId(), graph);
+    auto *bb = new BasicBlock(graph->NewBBId(), graph);
     graph->InsertBasicBlock(bb);
     return bb;
 }
@@ -36,7 +36,19 @@ Instruction *BasicBlock::GetLastInstruction()
     return *instructions_.rbegin();
 }
 
-void BasicBlock::Dump(std::stringstream &ss)
+std::vector<BasicBlock *> BasicBlock::GetSuccessors()
+{
+    std::vector<BasicBlock *> succ;
+    if (trueSuccessor_) {
+        succ.push_back(trueSuccessor_);
+    }
+    if (falseSuccessor_) {
+        succ.push_back(falseSuccessor_);
+    }
+    return succ;
+}
+
+void BasicBlock::Dump(std::stringstream &ss) const
 {
     ss << "BB." << id_ << ':' << '\n';
     for (auto *inst : instructions_) {

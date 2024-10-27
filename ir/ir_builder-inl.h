@@ -17,7 +17,7 @@ template <typename InstType, typename... InstArgs>
 InstType *IRBuilder::CreateInstruction(InstArgs... args)
 {
     ASSERT(insertionPoint_ != nullptr);
-    auto instId = InstId {graph_->GenerateInstId()};
+    auto instId = InstId {graph_->NewInstId()};
     auto *inst = new InstType {insertionPoint_, instId, std::forward<InstArgs>(args)...};
     ASSERT(inst->GetOpcode() != Opcode::PHI);
     insertionPoint_->InsertInstBack(inst);
@@ -30,7 +30,7 @@ InstType *IRBuilder::CreateInstruction(InstArgs... args)
 PhiInst *IRBuilder::CreatePhiInstruction(ResultType resType)
 {
     ASSERT(insertionPoint_ != nullptr);
-    auto instId = InstId {graph_->GenerateInstId(), true};
+    auto instId = InstId {graph_->NewInstId(), true};
     auto *inst = new PhiInst {insertionPoint_, instId, resType};
     insertionPoint_->InsertPhiInst(inst);
     return inst;

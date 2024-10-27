@@ -61,7 +61,6 @@ BranchInst *IRBuilder::CreateBr(BasicBlock *bb)
 {
     ASSERT(insertionPoint_ != nullptr);
     insertionPoint_->SetTrueSuccessor(bb);
-    bb->AddPredeccessor(insertionPoint_);
     return CreateInstruction<BranchInst>(Opcode::BRANCH, InstProxyList {});
 }
 
@@ -70,8 +69,6 @@ BranchInst *IRBuilder::CreateCondBr(Instruction *pred, BasicBlock *trueBr, Basic
     ASSERT(insertionPoint_ != nullptr);
     insertionPoint_->SetTrueSuccessor(trueBr);
     insertionPoint_->SetFalseSuccessor(falseBr);
-    trueBr->AddPredeccessor(insertionPoint_);
-    falseBr->AddPredeccessor(insertionPoint_);
     return CreateInstruction<BranchInst>(Opcode::COND_BRANCH, InstProxyList {pred});
 }
 

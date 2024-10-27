@@ -38,7 +38,7 @@ namespace compiler::tests {
  *       BB.3:
  *           11.s32 Return v4
  */
-TEST(JIT_COMPILER, Factorial)
+TEST(IR_BUILDER, Factorial)
 {
     auto graph = ir::Graph {};
     auto irBuilder = ir::IRBuilder {&graph};

@@ -198,6 +198,10 @@ TEST(DOMINATOR_TREE, ExampleGraph2)
 
     ASSERT(tree.GetDominators(bb10) == BBSet({bb0, bb1, bb2, bb3, bb4, bb5, bb6, bb8}));
     ASSERT(tree.GetImmediateDominator(bb10) == bb8);
+
+    ASSERT(tree.GetImmediateDominatorFor(bb7, bb10) == bb6);
+    ASSERT(tree.GetImmediateDominatorFor(bb5, bb3) == bb2);
+    ASSERT(tree.GetImmediateDominatorFor(bb2, bb2) == bb1);
 }
 
 /**

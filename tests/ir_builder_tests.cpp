@@ -1,12 +1,14 @@
 #include <gtest/gtest.h>
 #include <sstream>
 #include <iostream>
+#include <unordered_map>
 
 #include "ir/basic_block.h"
 #include "ir/common.h"
 #include "ir/graph.h"
 #include "ir/ir_builder.h"
 #include "ir/instruction.h"
+#include "utils/macros.h"
 
 namespace compiler::tests {
 
@@ -66,7 +68,7 @@ TEST(IR_BUILDER, Factorial)
     [[maybe_unused]] auto *v10 = irBuilder.CreateBr(bb2);
 
     irBuilder.SetInsertionPoint(bb4);
-    irBuilder.CreateRet(v4);
+    [[maybe_unused]] auto *v11 = irBuilder.CreateRet(v4);
 
     v4->ResolveDependency(v1, bb1);
     v4->ResolveDependency(v8, bb3);
@@ -77,6 +79,81 @@ TEST(IR_BUILDER, Factorial)
     std::stringstream ss;
     graph.Dump(ss);
     std::cout << ss.str() << std::endl;
+
+    ASSERT(v0->GetOpcode() == ir::Opcode::PARAMETER);
+    ASSERT(v0->GetInputs() == ir::Instruction::Inputs {});
+    ASSERT(v0->GetUsers() == ir::Instruction::Users {v6});
+    ASSERT(v0->GetBasicBlock() == bb1);
+
+    ASSERT(v1->GetOpcode() == ir::Opcode::CONSTANT);
+    ASSERT(v1->GetInputs() == ir::Instruction::Inputs {});
+    ASSERT(v1->GetUsers() == ir::Instruction::Users {v9});
+    ASSERT(v1->GetBasicBlock() == bb1);
+
+    ASSERT(v2->GetOpcode() == ir::Opcode::CONSTANT);
+    ASSERT(v2->GetInputs() == ir::Instruction::Inputs {});
+    ASSERT(v2->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v2->GetBasicBlock() == bb1);
+
+    ASSERT(v3->GetOpcode() == ir::Opcode::BRANCH);
+    ASSERT(v3->GetInputs() == ir::Instruction::Inputs {});
+    ASSERT(v3->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v3->GetBasicBlock() == bb1);
+
+    ASSERT(bb1->GetTrueSuccessor() == bb2);
+    ASSERT(bb1->GetFalseSuccessor() == nullptr);
+
+    ASSERT(v4->GetOpcode() == ir::Opcode::PHI);
+    ASSERT(v4->GetInputs() == ir::Instruction::Inputs {});
+    ASSERT(v4->GetUsers() == ir::Instruction::Users({v8, v11}));
+    ASSERT(v4->GetValueDependencies() == ir::PhiInst::ValueDependencies({{v1, bb1}, {v8, bb3}}));
+    ASSERT(v4->GetBasicBlock() == bb2);
+
+    ASSERT(v5->GetOpcode() == ir::Opcode::PHI);
+    ASSERT(v5->GetInputs() == ir::Instruction::Inputs {});
+    ASSERT(v5->GetUsers() == ir::Instruction::Users({v6, v8, v9}));
+    ASSERT(v5->GetValueDependencies() == ir::PhiInst::ValueDependencies({{v2, bb1}, {v9, bb3}}));
+    ASSERT(v5->GetBasicBlock() == bb2);
+
+    ASSERT(v6->GetOpcode() == ir::Opcode::COMPARE);
+    ASSERT(v6->GetFlags() == ir::CmpFlags::LE);
+    ASSERT(v6->GetInputs() == ir::Instruction::Inputs({v5, v0}));
+    ASSERT(v6->GetUsers() == ir::Instruction::Users {v7});
+    ASSERT(v6->GetBasicBlock() == bb2);
+
+    ASSERT(v7->GetOpcode() == ir::Opcode::COND_BRANCH);
+    ASSERT(v7->GetInputs() == ir::Instruction::Inputs {v6});
+    ASSERT(v7->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v7->GetBasicBlock() == bb2);
+
+    ASSERT(bb2->GetTrueSuccessor() == bb3);
+    ASSERT(bb2->GetFalseSuccessor() == bb4);
+
+    ASSERT(v8->GetOpcode() == ir::Opcode::MUL);
+    ASSERT(v8->GetInputs() == ir::Instruction::Inputs({v4, v5}));
+    ASSERT(v8->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v8->GetBasicBlock() == bb3);
+
+    ASSERT(v9->GetOpcode() == ir::Opcode::ADD);
+    ASSERT(v9->GetInputs() == ir::Instruction::Inputs({v5, v1}));
+    ASSERT(v9->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v9->GetBasicBlock() == bb3);
+
+    ASSERT(v10->GetOpcode() == ir::Opcode::BRANCH);
+    ASSERT(v10->GetInputs() == ir::Instruction::Inputs {});
+    ASSERT(v10->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v10->GetBasicBlock() == bb3);
+
+    ASSERT(bb3->GetTrueSuccessor() == bb2);
+    ASSERT(bb3->GetFalseSuccessor() == nullptr);
+
+    ASSERT(v11->GetOpcode() == ir::Opcode::RETURN);
+    ASSERT(v11->GetInputs() == ir::Instruction::Inputs {v4});
+    ASSERT(v11->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v11->GetBasicBlock() == bb4);
+
+    ASSERT(bb4->GetTrueSuccessor() == nullptr);
+    ASSERT(bb4->GetFalseSuccessor() == nullptr);
 }
 
 }  // namespace compiler::tests

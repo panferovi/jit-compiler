@@ -1,6 +1,7 @@
 #ifndef IR_ANALYSIS_H
 #define IR_ANALYSIS_H
 
+#include "ir/instruction.h"
 #include "ir/marker.h"
 
 #include <set>
@@ -81,9 +82,19 @@ public:
 
     void Run();
 
-    BBSet GetDominators(BasicBlock *bb);
+    BBSet GetDominators(BasicBlock *bb) const;
 
-    BasicBlock *GetImmediateDominator(BasicBlock *bb);
+    BBDeque GetOrderedDominators(BasicBlock *bb) const;
+
+    BasicBlock *GetImmediateDominator(BasicBlock *bb) const;
+
+    BasicBlock *GetImmediateDominatorFor(BasicBlock *bb1, BasicBlock *bb2) const;
+
+    Instruction *GetImmediateDominatorFor(Instruction *inst1, Instruction *inst2) const;
+
+    bool DoesBlockDominatesOn(BasicBlock *dominatee, BasicBlock *dominator) const;
+
+    bool DoesInstructionDominatesOn(Instruction *dominatee, Instruction *dominator) const;
 
 private:
     class DominatorsMap {
@@ -96,44 +107,25 @@ private:
         explicit DominatorsMap() = default;
         explicit DominatorsMap(Dominators dominatorsMap) : dominatorsMap_(std::move(dominatorsMap)) {}
 
-        BBDeque FindImmediateDominatedBlocks(BasicBlock *dominator);
+        BBDeque FindImmediateDominatees(BasicBlock *dominator) const;
 
     private:
         Dominators dominatorsMap_;
     };
 
-    DominatorsMap BuildDominatorsMap(const BBSet &dfsSet);
+    DominatorsMap BuildDominatorsMap(const BBSet &dfsSet) const;
 
-    class Node {
-    public:
-        explicit Node(BasicBlock *block, Node *dominator) : block_(block), dominator_(dominator) {}
+    bool TraverseTree(BasicBlock *bb, const std::function<bool(BasicBlock *)> &callback) const;
 
-        void AddDominatee(Node *dominatee);
+    void TraverseDominators(BasicBlock *bb, const std::function<bool(BasicBlock *)> &callback) const;
 
-        BasicBlock *GetBasicBlock() const;
+    BasicBlock *BuildDominatorTree(const DominatorsMap &dominatorsMap) const;
 
-        Node *GetDominator() const;
-
-        const std::deque<Node *> &GetImmediateDominatees() const;
-
-    private:
-        BasicBlock *block_ {nullptr};
-        Node *dominator_ {nullptr};
-        std::deque<Node *> immDominatees_;
-    };
-
-    bool TraverseTree(Node *node, const std::function<bool(Node *)> &callback);
-
-    Node *BuildDominatorTree();
-
-    void BuildTreeImpl(Node *dominator);
-
-    Node *CreateNode(BasicBlock *block, Node *dominator);
+    void BuildTreeImpl(BasicBlock *dominator, const DominatorsMap &dominatorsMap) const;
 
     Graph *graph_;
     Marker marker_;
-    DominatorsMap dominatorsMap_;
-    Node *rootDominator_ {nullptr};
+    BasicBlock *rootDominator_ {nullptr};
 };
 
 }  // namespace compiler::ir

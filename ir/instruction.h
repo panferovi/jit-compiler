@@ -56,9 +56,14 @@ public:
         return inputs_;
     }
 
-    const Inputs &GetUsers() const
+    const Users &GetUsers() const
     {
-        return inputs_;
+        return users_;
+    }
+
+    void SetBasicBlock(BasicBlock *bb)
+    {
+        ownerBB_ = bb;
     }
 
     void AddUsers(Instruction *user)
@@ -69,6 +74,11 @@ public:
     void AddUsers(InstProxyList users)
     {
         users_.insert(std::prev(users_.end()), users);
+    }
+
+    void InsertInstBefore(Instruction *insertionPoint)
+    {
+        LinkBefore(insertionPoint);
     }
 
     virtual ~Instruction() = default;
@@ -82,6 +92,7 @@ private:
     ResultType resType_;
     Inputs inputs_;
     Users users_;
+    BasicBlock *ownerBB_ = nullptr;
 };
 
 class AssignInst : public Instruction {
@@ -94,7 +105,7 @@ public:
         ASSERT(resType != ResultType::VOID);
     }
 
-    ConstOrParamId GetValue()
+    ConstOrParamId GetValue() const
     {
         return value_;
     }
@@ -161,6 +172,8 @@ public:
 
 class PhiInst : public Instruction {
 public:
+    using ValueDependencies = std::unordered_multimap<Instruction *, BasicBlock *>;
+
     PhiInst(BasicBlock *ownBB, InstId id, ResultType resType) : Instruction(ownBB, id, Opcode::PHI, resType)
     {
         ASSERT(resType != ResultType::VOID);
@@ -172,11 +185,14 @@ public:
         valueDeps_.insert(std::pair {value, bb});
     }
 
+    const ValueDependencies &GetValueDependencies()
+    {
+        return valueDeps_;
+    }
+
     void Dump(std::stringstream &ss) const override;
 
 private:
-    using ValueDependencies = std::unordered_multimap<Instruction *, BasicBlock *>;
-
     ValueDependencies valueDeps_;
 };
 

@@ -4,7 +4,6 @@
 #include "utils/macros.h"
 
 #include <cstddef>
-#include <stdexcept>
 #include <iterator>
 
 namespace compiler::utils {

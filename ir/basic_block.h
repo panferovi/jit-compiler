@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <list>
 #include <vector>
+#include <deque>
+#include <functional>
 
 namespace compiler::ir {
 
@@ -100,9 +102,21 @@ public:
 
     void InsertPhiInst(Instruction *inst);
 
+    void InsertInstBefore(Instruction *insertionPoint, Instruction *inst);
+
     Instruction *GetLastInstruction();
 
     void Dump(std::stringstream &ss) const;
+
+    void SetDominator(BasicBlock *dominator);
+
+    BasicBlock *GetDominator() const;
+
+    void AddDominatee(BasicBlock *dominatee);
+
+    const std::deque<BasicBlock *> &GetImmediateDominatees() const;
+
+    void IterateOverInstructions(std::function<bool(Instruction *)> callback);
 
 private:
     BasicBlock(Id id, Graph *graph) : id_(id), graph_(graph) {}
@@ -114,8 +128,12 @@ private:
     BasicBlock *trueSuccessor_ {nullptr};
     BasicBlock *falseSuccessor_ {nullptr};
     Instruction *lastPhiInst_ {nullptr};
+
+    // analysis
     Marker marker_ {};
     uint32_t dfsOrder_ {0};
+    BasicBlock *dominator_ {nullptr};
+    std::deque<BasicBlock *> immDominatees_;
 };
 
 }  // namespace compiler::ir

@@ -1,6 +1,7 @@
 #include "ir/analysis.h"
 #include "ir/basic_block.h"
 #include "ir/graph.h"
+#include "ir/instruction.h"
 #include "ir/marker.h"
 #include "utils/macros.h"
 
@@ -71,11 +72,11 @@ void DominatorsTree::Run()
 
     auto dfsSet = dfs.CreateDfsBBSet();
     ASSERT(dfsSet.size() == dfsVec.size());
-    dominatorsMap_ = BuildDominatorsMap(dfsSet);
-    rootDominator_ = BuildDominatorTree();
+    auto dominatorsMap = BuildDominatorsMap(dfsSet);
+    rootDominator_ = BuildDominatorTree(dominatorsMap);
 }
 
-DominatorsTree::DominatorsMap DominatorsTree::BuildDominatorsMap(const BBSet &dfsSet)
+DominatorsTree::DominatorsMap DominatorsTree::BuildDominatorsMap(const BBSet &dfsSet) const
 {
     ASSERT(!marker_.IsEmpty());
 
@@ -115,7 +116,7 @@ bool DominatorsTree::DominatorsMap::DominatorsComp::operator()(BasicBlock *const
     return bb1->GetDfsOrder() < bb2->GetDfsOrder();
 }
 
-DominatorsTree::BBDeque DominatorsTree::DominatorsMap::FindImmediateDominatedBlocks(BasicBlock *dominator)
+DominatorsTree::BBDeque DominatorsTree::DominatorsMap::FindImmediateDominatees(BasicBlock *dominator) const
 {
     BBDeque immDominatees;
     for (auto &[dominatee, dominators] : dominatorsMap_) {
@@ -127,92 +128,144 @@ DominatorsTree::BBDeque DominatorsTree::DominatorsMap::FindImmediateDominatedBlo
     return immDominatees;
 }
 
-DominatorsTree::Node *DominatorsTree::BuildDominatorTree()
+BasicBlock *DominatorsTree::BuildDominatorTree(const DominatorsTree::DominatorsMap &dominatorsMap) const
 {
-    auto *rootDominator = CreateNode(graph_->GetStartBlock(), nullptr);
-    BuildTreeImpl(rootDominator);
+    auto *rootDominator = graph_->GetStartBlock();
+    BuildTreeImpl(rootDominator, dominatorsMap);
     return rootDominator;
 }
 
-void DominatorsTree::BuildTreeImpl(Node *dominator)
+void DominatorsTree::BuildTreeImpl(BasicBlock *dominator, const DominatorsTree::DominatorsMap &dominatorsMap) const
 {
-    auto immDominatees = dominatorsMap_.FindImmediateDominatedBlocks(dominator->GetBasicBlock());
+    auto immDominatees = dominatorsMap.FindImmediateDominatees(dominator);
     for (auto *dominatee : immDominatees) {
-        auto *node = CreateNode(dominatee, dominator);
-        dominator->AddDominatee(node);
-        BuildTreeImpl(node);
+        dominator->AddDominatee(dominatee);
+        dominatee->SetDominator(dominator);
+        BuildTreeImpl(dominatee, dominatorsMap);
     }
 }
 
-DominatorsTree::Node *DominatorsTree::CreateNode(BasicBlock *block, Node *dominator)
+DominatorsTree::BBSet DominatorsTree::GetDominators(BasicBlock *bb) const
 {
-    ASSERT(block != nullptr);
-    return new Node {block, dominator};
-}
-
-void DominatorsTree::Node::AddDominatee(Node *dominatee)
-{
-    immDominatees_.push_back(dominatee);
-}
-
-BasicBlock *DominatorsTree::Node::GetBasicBlock() const
-{
-    return block_;
-}
-
-DominatorsTree::Node *DominatorsTree::Node::GetDominator() const
-{
-    return dominator_;
-}
-
-const std::deque<DominatorsTree::Node *> &DominatorsTree::Node::GetImmediateDominatees() const
-{
-    return immDominatees_;
-}
-
-DominatorsTree::BBSet DominatorsTree::GetDominators(BasicBlock *bb)
-{
+    ASSERT(rootDominator_ != nullptr);
     BBSet dominators;
-    TraverseTree(rootDominator_, [&dominators, bb](Node *node) {
-        if (node->GetBasicBlock() != bb) {
-            return false;
-        }
-        // dominator is nullptr in case of root
-        for (auto *dominator = node->GetDominator(); dominator != nullptr; dominator = dominator->GetDominator()) {
-            dominators.insert(dominator != nullptr ? dominator->GetBasicBlock() : nullptr);
-        }
-        return true;
+    TraverseDominators(bb, [&dominators](BasicBlock *dominator) {
+        dominators.insert(dominator);
+        return false;
     });
     return dominators;
 }
 
-BasicBlock *DominatorsTree::GetImmediateDominator(BasicBlock *bb)
+DominatorsTree::BBDeque DominatorsTree::GetOrderedDominators(BasicBlock *bb) const
 {
-    BasicBlock *immDominator = nullptr;
-    TraverseTree(rootDominator_, [&immDominator, bb](Node *node) {
-        if (node->GetBasicBlock() != bb) {
-            return false;
-        }
-        // dominator is nullptr in case of root
-        auto *dominator = node->GetDominator();
-        immDominator = dominator != nullptr ? dominator->GetBasicBlock() : nullptr;
-        return true;
+    ASSERT(rootDominator_ != nullptr);
+    BBDeque dominators;
+    TraverseDominators(bb, [&dominators](BasicBlock *dominator) {
+        dominators.push_back(dominator);
+        return false;
     });
-    return immDominator;
+    return dominators;
 }
 
-bool DominatorsTree::TraverseTree(Node *node, const std::function<bool(Node *)> &callback)
+BasicBlock *DominatorsTree::GetImmediateDominator(BasicBlock *bb) const
 {
-    ASSERT(node != nullptr);
-    if (callback(node)) {
+    ASSERT(rootDominator_ != nullptr);
+    return bb->GetDominator();
+}
+
+BasicBlock *DominatorsTree::GetImmediateDominatorFor(BasicBlock *bb1, BasicBlock *bb2) const
+{
+    auto dominators1 = GetOrderedDominators(bb1);
+    auto dominators2 = GetOrderedDominators(bb2);
+    if (dominators1.empty() || dominators2.empty()) {
+        return nullptr;
+    }
+    BasicBlock *commonDominator = nullptr;
+    for (int idx1 = dominators1.size() - 1, idx2 = dominators2.size() - 1; idx1 >= 0 && idx2 >= 0; idx1--, idx2--) {
+        if (dominators1[idx1] != dominators2[idx2]) {
+            return commonDominator;
+        }
+        commonDominator = dominators1[idx1];
+    }
+    return commonDominator;
+}
+
+Instruction *DominatorsTree::GetImmediateDominatorFor(Instruction *inst1, Instruction *inst2) const
+{
+    auto *bb1 = inst1->GetBasicBlock();
+    auto *bb2 = inst2->GetBasicBlock();
+    if (bb1 != bb2) {
+        return GetImmediateDominatorFor(bb1, bb2)->GetLastInstruction();
+    }
+    Instruction *commonDominator = nullptr;
+    bb1->IterateOverInstructions([&commonDominator, inst1, inst2](Instruction *inst) {
+        if (inst == inst1 || inst == inst2) {
+            return true;
+        }
+        commonDominator = inst;
+        return false;
+    });
+    return commonDominator;
+}
+
+bool DominatorsTree::DoesBlockDominatesOn(BasicBlock *dominatee, BasicBlock *dominator) const
+{
+    bool doesDominates = false;
+    TraverseTree(dominator, [&doesDominates, dominatee, dominator](BasicBlock *bb) {
+        if (dominatee == bb) {
+            doesDominates = bb == dominator;
+            return true;
+        }
+        return false;
+    });
+    return doesDominates;
+}
+
+bool DominatorsTree::DoesInstructionDominatesOn(Instruction *dominatee, Instruction *dominator) const
+{
+    auto *dominateeBlock = dominatee->GetBasicBlock();
+    auto *dominatorBlock = dominator->GetBasicBlock();
+    if (dominateeBlock != dominatorBlock) {
+        return DoesBlockDominatesOn(dominateeBlock, dominatorBlock);
+    }
+    bool doesDominates = false;
+    dominatorBlock->IterateOverInstructions([&doesDominates, dominatee, dominator](Instruction *inst) {
+        if (inst == dominatee) {
+            return true;
+        }
+        if (inst == dominator) {
+            doesDominates = true;
+            return true;
+        }
+        return false;
+    });
+    return doesDominates;
+}
+
+bool DominatorsTree::TraverseTree(BasicBlock *bb, const std::function<bool(BasicBlock *)> &callback) const
+{
+    ASSERT(bb != nullptr);
+    if (callback(bb)) {
         return true;
     }
-    for (auto &immDominatee : node->GetImmediateDominatees()) {
+    for (auto &immDominatee : bb->GetImmediateDominatees()) {
         if (TraverseTree(immDominatee, callback)) {
             return true;
         }
     }
     return false;
+}
+
+void DominatorsTree::TraverseDominators(BasicBlock *bb, const std::function<bool(BasicBlock *)> &callback) const
+{
+    ASSERT(bb != nullptr);
+    auto *dominator = bb->GetDominator();
+    while (dominator != nullptr) {
+        if (callback(dominator)) {
+            return;
+        }
+        dominator = dominator->GetDominator();
+    }
 }
 
 }  // namespace compiler::ir

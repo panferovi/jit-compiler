@@ -24,6 +24,7 @@ InstType *IRBuilder::CreateInstruction(InstArgs... args)
     for (auto *input : inst->GetInputs()) {
         input->AddUsers(inst);
     }
+    inst->SetBasicBlock(insertionPoint_);
     return inst;
 }
 

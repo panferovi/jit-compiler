@@ -33,6 +33,9 @@ BasicBlock *BasicBlock::Create(Graph *graph)
 
 Instruction *BasicBlock::GetLastInstruction()
 {
+    if (instructions_.IsEmpty()) {
+        return nullptr;
+    }
     return *instructions_.rbegin();
 }
 
@@ -63,6 +66,36 @@ BasicBlock::~BasicBlock()
     while (instructions_.NonEmpty()) {
         auto *inst = instructions_.PopFront();
         delete inst;
+    }
+}
+
+void BasicBlock::SetDominator(BasicBlock *dominator)
+{
+    ASSERT(dominator_ == nullptr);
+    dominator_ = dominator;
+}
+
+BasicBlock *BasicBlock::GetDominator() const
+{
+    return dominator_;
+}
+
+void BasicBlock::AddDominatee(BasicBlock *dominatee)
+{
+    immDominatees_.push_back(dominatee);
+}
+
+const std::deque<BasicBlock *> &BasicBlock::GetImmediateDominatees() const
+{
+    return immDominatees_;
+}
+
+void BasicBlock::IterateOverInstructions(std::function<bool(Instruction *)> callback)
+{
+    for (auto *inst : instructions_) {
+        if (callback(inst)) {
+            return;
+        }
     }
 }
 

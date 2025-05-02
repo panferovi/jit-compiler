@@ -1,4 +1,5 @@
 #include "ir/common.h"
+#include "ir/instruction.h"
 #include "utils/macros.h"
 
 namespace compiler::ir {
@@ -90,6 +91,13 @@ std::ostream &operator<<(std::ostream &os, const CmpFlags &cmpFlags)
             break;
     }
     return os;
+}
+
+ResultType CombineResultType(const Instruction *op1, const Instruction *op2)
+{
+    auto resType1 = static_cast<int>(op1->GetResultType());
+    auto resType2 = static_cast<int>(op2->GetResultType());
+    return static_cast<ResultType>(std::max(resType1, resType2));
 }
 
 }  // namespace compiler::ir

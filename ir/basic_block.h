@@ -25,6 +25,7 @@ public:
     ~BasicBlock();
 
     using Predecessors = std::list<BasicBlock *>;
+    using InterruptibleVisitor = std::function<bool(Instruction *)>;
 
     Id GetId() const
     {
@@ -102,8 +103,6 @@ public:
 
     void InsertPhiInst(Instruction *inst);
 
-    void InsertInstBefore(Instruction *insertionPoint, Instruction *inst);
-
     Instruction *GetLastInstruction();
 
     void Dump(std::stringstream &ss) const;
@@ -116,7 +115,7 @@ public:
 
     const std::deque<BasicBlock *> &GetImmediateDominatees() const;
 
-    void IterateOverInstructions(std::function<bool(Instruction *)> callback);
+    void IterateOverInstructions(InterruptibleVisitor visitor);
 
 private:
     BasicBlock(Id id, Graph *graph) : id_(id), graph_(graph) {}

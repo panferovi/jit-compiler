@@ -9,6 +9,52 @@ void Instruction::Dump(std::stringstream &ss) const
     ss << instId_ << '.' << resType_ << ' ' << op_ << ' ';
 }
 
+/* static */
+void Instruction::UpdateUsersAndEleminate(Instruction *inst, Instruction *newInst)
+{
+    ASSERT(inst != newInst);
+    ASSERT(newInst != nullptr);
+
+    auto &users = inst->users_;
+    newInst->AddUsers(users);
+    for (auto *user : users) {
+        if (user->GetOpcode() != Opcode::PHI) {
+            user->UpdateInputs(inst, newInst);
+        } else {
+            user->As<PhiInst>()->UpdateDependencies(inst, newInst);
+        }
+    }
+    users.clear();
+    Instruction::Eleminate(inst);
+}
+
+/* static */
+void Instruction::Eleminate(Instruction *inst)
+{
+    ASSERT(inst->GetUsers().empty());
+    for (auto *input : inst->GetInputs()) {
+        input->users_.erase(inst);
+    }
+    inst->Unlink();
+    delete inst;
+}
+
+void Instruction::UpdateInputs(Instruction *oldInput, Instruction *newInput)
+{
+    for (auto &input : inputs_) {
+        if (input == oldInput) {
+            input = newInput;
+            break;
+        }
+    }
+}
+
+void Instruction::UpdateUsers(Instruction *oldUser, Instruction *newUser)
+{
+    users_.erase(oldUser);
+    users_.insert(newUser);
+}
+
 void AssignInst::Dump(std::stringstream &ss) const
 {
     Instruction::Dump(ss);
@@ -20,6 +66,13 @@ void ArithmInst::Dump(std::stringstream &ss) const
     Instruction::Dump(ss);
     auto &inputs = GetInputs();
     ss << 'v' << inputs.front()->GetInstId().GetId() << ", v" << inputs.back()->GetInstId().GetId();
+}
+
+std::pair<bool, bool> ArithmInst::CheckInputsAreConst()
+{
+    auto *op1 = GetInputs().front();
+    auto *op2 = GetInputs().back();
+    return {op1->GetOpcode() == ir::Opcode::CONSTANT, op2->GetOpcode() == ir::Opcode::CONSTANT};
 }
 
 void LogicInst::Dump(std::stringstream &ss) const
@@ -54,10 +107,36 @@ void PhiInst::Dump(std::stringstream &ss) const
 {
     Instruction::Dump(ss);
     for (auto valueDepIt = valueDeps_.cbegin(); valueDepIt != valueDeps_.cend(); ++valueDepIt) {
-        ss << 'v' << valueDepIt->first->GetInstId().GetId() << ":BB." << valueDepIt->second->GetId();
+        auto &[inst, bbs] = *valueDepIt;
+        for (auto bbIt = bbs.cbegin(); bbIt != bbs.cend(); ++bbIt) {
+            ss << 'v' << inst->GetInstId().GetId() << ":BB." << (*bbIt)->GetId();
+            if (std::next(bbIt) != bbs.cend()) {
+                ss << ", ";
+            }
+        }
         if (std::next(valueDepIt) != valueDeps_.cend()) {
             ss << ", ";
         }
+    }
+}
+
+void PhiInst::ResolveDependency(Instruction *value, BasicBlock *bb)
+{
+    ASSERT(value->GetResultType() == GetResultType());
+    valueDeps_[value].push_back(bb);
+    value->AddUsers(this);
+}
+
+void PhiInst::UpdateDependencies(Instruction *oldValue, Instruction *newValue)
+{
+    auto node = valueDeps_.extract(oldValue);
+    ASSERT(node.empty());
+    node.key() = newValue;
+    auto insertRes = valueDeps_.insert(std::move(node));
+    // TODO: add test for this branch (if phi uses the same const for peephole and creation)
+    if (!insertRes.inserted) {
+        ASSERT(insertRes.node.empty());
+        valueDeps_[newValue].merge(std::move(insertRes.node.mapped()));
     }
 }
 

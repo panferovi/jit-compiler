@@ -1,7 +1,6 @@
-#ifndef IR_ANALYSIS_H
-#define IR_ANALYSIS_H
+#ifndef ANALYSIS_ANALYSIS_H
+#define ANALYSIS_ANALYSIS_H
 
-#include "ir/instruction.h"
 #include "ir/marker.h"
 
 #include <set>
@@ -11,10 +10,18 @@
 #include <cstddef>
 #include <functional>
 
-namespace compiler::ir {
+namespace compiler {
 
+namespace ir {
 class Graph;
 class BasicBlock;
+class Instruction;
+}  // namespace ir
+
+using ir::BasicBlock;
+using ir::Graph;
+using ir::Instruction;
+using ir::Marker;
 
 class DFS {
 public:
@@ -128,6 +135,6 @@ private:
     BasicBlock *rootDominator_ {nullptr};
 };
 
-}  // namespace compiler::ir
+}  // namespace compiler
 
-#endif  // IR_ANALYSIS_H
+#endif  // ANALYSIS_ANALYSIS_H

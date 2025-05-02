@@ -10,20 +10,20 @@ using Id = uint32_t;
 
 class InstId {
 public:
-    explicit InstId(Id id, bool isPhi = false) : id_(id << PHI_BIT | isPhi) {}
+    explicit InstId(Id id, bool isPhi = false) : id_(id << PhiBit | isPhi) {}
 
     Id GetId() const
     {
-        return id_ >> PHI_BIT;
+        return id_ >> PhiBit;
     }
 
     bool IsPhi() const
     {
-        return id_ & PHI_BIT;
+        return id_ & PhiBit;
     }
 
 private:
-    static constexpr uint32_t PHI_BIT = 1U;
+    static constexpr uint32_t PhiBit = 1U;
 
     Id id_;
 };

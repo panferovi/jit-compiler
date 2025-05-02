@@ -2,7 +2,7 @@
 #include <sstream>
 #include <iostream>
 
-#include "ir/analysis.h"
+#include "analysis/analysis.h"
 #include "ir/basic_block.h"
 #include "ir/common.h"
 #include "ir/graph.h"
@@ -61,7 +61,7 @@ TEST(DOMINATOR_TREE, ExampleGraph1)
 
     bb6->SetTrueSuccessor(bb3);
 
-    ir::DominatorsTree tree {&graph};
+    DominatorsTree tree {&graph};
     tree.Run();
 
     ASSERT(tree.GetDominators(bb0) == BBSet({}));
@@ -166,7 +166,7 @@ TEST(DOMINATOR_TREE, ExampleGraph2)
 
     bb8->SetTrueSuccessor(bb10);
 
-    ir::DominatorsTree tree {&graph};
+    DominatorsTree tree {&graph};
     tree.Run();
 
     ASSERT(tree.GetDominators(bb0) == BBSet({}));
@@ -269,7 +269,7 @@ TEST(DOMINATOR_TREE, ExampleGraph3)
     bb7->SetTrueSuccessor(bb8);
     bb7->SetFalseSuccessor(bb6);
 
-    ir::DominatorsTree tree {&graph};
+    DominatorsTree tree {&graph};
     tree.Run();
 
     ASSERT(tree.GetDominators(bb0) == BBSet({}));

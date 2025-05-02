@@ -17,7 +17,8 @@ add_library(jit_compiler STATIC
     ir/ir_builder.cpp
     ir/basic_block.cpp
     ir/instruction.cpp
-    ir/analysis.cpp
+    analysis/analysis.cpp
+    analysis/optimization.cpp
 )
 
 target_include_directories(jit_compiler
@@ -36,8 +37,8 @@ function (filter_items aItems aRegEx)
     # Provide output parameter
     set(${aItems} ${${aItems}} PARENT_SCOPE)
 endfunction (filter_items)
-file(GLOB_RECURSE EMULATOR_FILES *cpp *.h)
-filter_items(EMULATOR_FILES "CMakeFiles/*")
+file(GLOB_RECURSE COMPILER_FILES *cpp *.h)
+filter_items(COMPILER_FILES "CMakeFiles/*")
 
 find_program(CLANG_FORMAT "clang-format-14" REQUIRED)
 
@@ -45,5 +46,5 @@ add_custom_target(format
     COMMAND clang-format-14
     -i
     -style=file
-    ${EMULATOR_FILES}
+    ${COMPILER_FILES}
 )

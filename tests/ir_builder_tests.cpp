@@ -87,12 +87,12 @@ TEST(IR_BUILDER, Factorial)
 
     ASSERT(v1->GetOpcode() == ir::Opcode::CONSTANT);
     ASSERT(v1->GetInputs() == ir::Instruction::Inputs {});
-    ASSERT(v1->GetUsers() == ir::Instruction::Users {v9});
+    ASSERT(v1->GetUsers() == ir::Instruction::Users({v4, v9}));
     ASSERT(v1->GetBasicBlock() == bb1);
 
     ASSERT(v2->GetOpcode() == ir::Opcode::CONSTANT);
     ASSERT(v2->GetInputs() == ir::Instruction::Inputs {});
-    ASSERT(v2->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v2->GetUsers() == ir::Instruction::Users {v5});
     ASSERT(v2->GetBasicBlock() == bb1);
 
     ASSERT(v3->GetOpcode() == ir::Opcode::BRANCH);
@@ -106,13 +106,13 @@ TEST(IR_BUILDER, Factorial)
     ASSERT(v4->GetOpcode() == ir::Opcode::PHI);
     ASSERT(v4->GetInputs() == ir::Instruction::Inputs {});
     ASSERT(v4->GetUsers() == ir::Instruction::Users({v8, v11}));
-    ASSERT(v4->GetValueDependencies() == ir::PhiInst::ValueDependencies({{v1, bb1}, {v8, bb3}}));
+    ASSERT(v4->GetValueDependencies() == ir::PhiInst::ValueDependencies({{v1, {bb1}}, {v8, {bb3}}}));
     ASSERT(v4->GetBasicBlock() == bb2);
 
     ASSERT(v5->GetOpcode() == ir::Opcode::PHI);
     ASSERT(v5->GetInputs() == ir::Instruction::Inputs {});
     ASSERT(v5->GetUsers() == ir::Instruction::Users({v6, v8, v9}));
-    ASSERT(v5->GetValueDependencies() == ir::PhiInst::ValueDependencies({{v2, bb1}, {v9, bb3}}));
+    ASSERT(v5->GetValueDependencies() == ir::PhiInst::ValueDependencies({{v2, {bb1}}, {v9, {bb3}}}));
     ASSERT(v5->GetBasicBlock() == bb2);
 
     ASSERT(v6->GetOpcode() == ir::Opcode::COMPARE);
@@ -131,12 +131,12 @@ TEST(IR_BUILDER, Factorial)
 
     ASSERT(v8->GetOpcode() == ir::Opcode::MUL);
     ASSERT(v8->GetInputs() == ir::Instruction::Inputs({v4, v5}));
-    ASSERT(v8->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v8->GetUsers() == ir::Instruction::Users {v4});
     ASSERT(v8->GetBasicBlock() == bb3);
 
     ASSERT(v9->GetOpcode() == ir::Opcode::ADD);
     ASSERT(v9->GetInputs() == ir::Instruction::Inputs({v5, v1}));
-    ASSERT(v9->GetUsers() == ir::Instruction::Users {});
+    ASSERT(v9->GetUsers() == ir::Instruction::Users {v5});
     ASSERT(v9->GetBasicBlock() == bb3);
 
     ASSERT(v10->GetOpcode() == ir::Opcode::BRANCH);

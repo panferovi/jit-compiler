@@ -1,4 +1,4 @@
-#include "ir/analysis.h"
+#include "analysis/analysis.h"
 #include "ir/basic_block.h"
 #include "ir/graph.h"
 #include "ir/instruction.h"
@@ -7,7 +7,7 @@
 
 #include <algorithm>
 
-namespace compiler::ir {
+namespace compiler {
 
 void DFS::Run()
 {
@@ -268,4 +268,4 @@ void DominatorsTree::TraverseDominators(BasicBlock *bb, const std::function<bool
     }
 }
 
-}  // namespace compiler::ir
+}  // namespace compiler

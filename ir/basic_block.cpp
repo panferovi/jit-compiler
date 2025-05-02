@@ -90,10 +90,10 @@ const std::deque<BasicBlock *> &BasicBlock::GetImmediateDominatees() const
     return immDominatees_;
 }
 
-void BasicBlock::IterateOverInstructions(std::function<bool(Instruction *)> callback)
+void BasicBlock::IterateOverInstructions(InterruptibleVisitor visitor)
 {
     for (auto *inst : instructions_) {
-        if (callback(inst)) {
+        if (visitor(inst)) {
             return;
         }
     }

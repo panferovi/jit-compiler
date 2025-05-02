@@ -21,10 +21,6 @@ InstType *IRBuilder::CreateInstruction(InstArgs... args)
     auto *inst = new InstType {insertionPoint_, instId, std::forward<InstArgs>(args)...};
     ASSERT(inst->GetOpcode() != Opcode::PHI);
     insertionPoint_->InsertInstBack(inst);
-    for (auto *input : inst->GetInputs()) {
-        input->AddUsers(inst);
-    }
-    inst->SetBasicBlock(insertionPoint_);
     return inst;
 }
 

@@ -16,13 +16,6 @@ static bool IsArithmeticOperands(Instruction *op1, Instruction *op2)
 }
 #endif
 
-static ResultType CombineResultType(Instruction *op1, Instruction *op2)
-{
-    auto resType1 = static_cast<int>(op1->GetResultType());
-    auto resType2 = static_cast<int>(op2->GetResultType());
-    return static_cast<ResultType>(std::max(resType1, resType2));
-}
-
 AssignInst *IRBuilder::CreateConstInt(int value)
 {
     return CreateInstruction<AssignInst>(Opcode::CONSTANT, ResultType::S32, value);
@@ -43,6 +36,18 @@ ArithmInst *IRBuilder::CreateMul(Instruction *op1, Instruction *op2)
 {
     ASSERT(IsArithmeticOperands(op1, op2));
     return CreateInstruction<ArithmInst>(Opcode::MUL, CombineResultType(op1, op2), InstProxyList {op1, op2});
+}
+
+ArithmInst *IRBuilder::CreateShl(Instruction *op1, Instruction *op2)
+{
+    ASSERT(IsArithmeticOperands(op1, op2));
+    return CreateInstruction<ArithmInst>(Opcode::SHL, CombineResultType(op1, op2), InstProxyList {op1, op2});
+}
+
+ArithmInst *IRBuilder::CreateXor(Instruction *op1, Instruction *op2)
+{
+    ASSERT(IsArithmeticOperands(op1, op2));
+    return CreateInstruction<ArithmInst>(Opcode::XOR, CombineResultType(op1, op2), InstProxyList {op1, op2});
 }
 
 LogicInst *IRBuilder::CreateCmpLE(Instruction *op1, Instruction *op2)

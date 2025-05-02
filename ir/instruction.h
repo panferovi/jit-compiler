@@ -7,6 +7,7 @@
 #include "utils/intrusive_list.h"
 
 #include <list>
+#include <set>
 #include <sstream>
 #include <unordered_map>
 #include <initializer_list>
@@ -21,7 +22,7 @@ using InstProxyList = std::initializer_list<Instruction *>;
 class Instruction : public utils::IntrusiveListNode<Instruction> {
 public:
     using Inputs = std::list<Instruction *>;
-    using Users = std::list<Instruction *>;
+    using Users = std::set<Instruction *>;
     using ListNode = utils::IntrusiveListNode<Instruction>;
 
     Instruction(BasicBlock *ownBB, InstId id, Opcode op, ResultType resType, InstProxyList inputs = {})
@@ -29,6 +30,9 @@ public:
     {
         ASSERT(op != Opcode::INVALID);
         ASSERT(resType != ResultType::INVALID);
+        for (auto *input : GetInputs()) {
+            input->AddUsers(this);
+        }
     }
 
     BasicBlock *GetBasicBlock() const
@@ -51,6 +55,16 @@ public:
         return resType_;
     }
 
+    Instruction *GetFirstOp() const
+    {
+        return inputs_.front();
+    }
+
+    Instruction *GetSecondOp() const
+    {
+        return inputs_.back();
+    }
+
     const Inputs &GetInputs() const
     {
         return inputs_;
@@ -61,6 +75,10 @@ public:
         return users_;
     }
 
+    void UpdateInputs(Instruction *oldInput, Instruction *newInput);
+
+    void UpdateUsers(Instruction *oldUser, Instruction *newUser);
+
     void SetBasicBlock(BasicBlock *bb)
     {
         ownerBB_ = bb;
@@ -68,12 +86,17 @@ public:
 
     void AddUsers(Instruction *user)
     {
-        users_.push_back(user);
+        users_.insert(user);
     }
 
     void AddUsers(InstProxyList users)
     {
-        users_.insert(std::prev(users_.end()), users);
+        users_.insert(users);
+    }
+
+    void AddUsers(const Users &users)
+    {
+        users_.insert(users.begin(), users.end());
     }
 
     void InsertInstBefore(Instruction *insertionPoint)
@@ -84,6 +107,18 @@ public:
     virtual ~Instruction() = default;
 
     virtual void Dump(std::stringstream &ss) const;
+
+    static void UpdateUsersAndEleminate(Instruction *inst, Instruction *newInst);
+
+    static void Eleminate(Instruction *inst);
+
+    template <typename T>
+    T *As()
+    {
+        return static_cast<T *>(this);
+    }
+
+    static constexpr Instruction *EmptyInst = nullptr;
 
 private:
     BasicBlock *ownBB_;
@@ -124,6 +159,8 @@ public:
         ASSERT(resType != ResultType::VOID);
         ASSERT(inputs.size() == 2);
     }
+
+    std::pair<bool, bool> CheckInputsAreConst();
 
     void Dump(std::stringstream &ss) const override;
 };
@@ -172,18 +209,16 @@ public:
 
 class PhiInst : public Instruction {
 public:
-    using ValueDependencies = std::unordered_multimap<Instruction *, BasicBlock *>;
+    using ValueDependencies = std::unordered_map<Instruction *, std::list<BasicBlock *>>;
 
     PhiInst(BasicBlock *ownBB, InstId id, ResultType resType) : Instruction(ownBB, id, Opcode::PHI, resType)
     {
         ASSERT(resType != ResultType::VOID);
     }
 
-    void ResolveDependency(Instruction *value, BasicBlock *bb)
-    {
-        ASSERT(value->GetResultType() == GetResultType());
-        valueDeps_.insert(std::pair {value, bb});
-    }
+    void ResolveDependency(Instruction *value, BasicBlock *bb);
+
+    void UpdateDependencies(Instruction *oldValue, Instruction *newValue);
 
     const ValueDependencies &GetValueDependencies()
     {

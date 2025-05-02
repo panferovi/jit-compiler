@@ -33,6 +33,8 @@ public:
 
     ArithmInst *CreateAdd(Instruction *op1, Instruction *op2);
     ArithmInst *CreateMul(Instruction *op1, Instruction *op2);
+    ArithmInst *CreateShl(Instruction *op1, Instruction *op2);
+    ArithmInst *CreateXor(Instruction *op1, Instruction *op2);
 
     LogicInst *CreateCmpLE(Instruction *op1, Instruction *op2);
     LogicInst *CreateCmpLT(Instruction *op1, Instruction *op2);

@@ -38,6 +38,8 @@ PeepHoleOptimizer::OptimizerMap PeepHoleOptimizer::CreateOptimizers()
     OptimizerMap optimizers {};
     optimizers.fill(OptimizeStub);
     optimizers[ir::OpcodeToIndex<ir::Opcode::ADD>()] = OptimizeAdd;
+    optimizers[ir::OpcodeToIndex<ir::Opcode::SHL>()] = OptimizeShl;
+    optimizers[ir::OpcodeToIndex<ir::Opcode::XOR>()] = OptimizeXor;
     return optimizers;
 }
 
@@ -47,6 +49,7 @@ void PeepHoleOptimizer::Run()
     rpo.Run();
     for (auto *bb : rpo.GetRpoVector()) {
         bb->IterateOverInstructions([](ir::Instruction *inst) {
+            std::cout << "IterateOverInstructions: " << inst << std::endl;
             auto optimizerIdx = static_cast<uint32_t>(inst->GetOpcode());
             auto *optimizer = OpcodeToOptimizer[optimizerIdx];
             optimizer(inst);

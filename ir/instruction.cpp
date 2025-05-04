@@ -35,6 +35,7 @@ void Instruction::Eleminate(Instruction *inst)
     for (auto *input : inst->GetInputs()) {
         input->users_.erase(inst);
     }
+    std::cout << "Instruction::Eleminate: " << inst << std::endl;
     inst->Unlink();
     delete inst;
 }
@@ -130,12 +131,10 @@ void PhiInst::ResolveDependency(Instruction *value, BasicBlock *bb)
 void PhiInst::UpdateDependencies(Instruction *oldValue, Instruction *newValue)
 {
     auto node = valueDeps_.extract(oldValue);
-    ASSERT(node.empty());
+    ASSERT(!node.empty());
     node.key() = newValue;
     auto insertRes = valueDeps_.insert(std::move(node));
-    // TODO: add test for this branch (if phi uses the same const for peephole and creation)
     if (!insertRes.inserted) {
-        ASSERT(insertRes.node.empty());
         valueDeps_[newValue].merge(std::move(insertRes.node.mapped()));
     }
 }

@@ -23,9 +23,10 @@ private:
     enum class OptStatus { NO_OPT, OPT, CANT_OPT };
 
     static void OptimizeStub([[maybe_unused]] ir::Instruction *inst) {}
-    static void OptimizeAdd(ir::Instruction *inst);
-    static void OptimizeShl(ir::Instruction *inst);
-    static void OptimizeXor(ir::Instruction *inst);
+    static void OptimizeAdd(ir::Instruction *addInst);
+    static void OptimizeShl(ir::Instruction *shlInst);
+    static void OptimizeXor(ir::Instruction *xorInst);
+    static void OptimizePhi(ir::Instruction *phiInst);
 
     using BothConstOpt = int64_t (*)(int64_t op1, int64_t op2);
     using FirstConstOpt = ir::Instruction *(*)(int64_t op1, ir::Instruction *inst);

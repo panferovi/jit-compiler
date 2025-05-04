@@ -220,6 +220,8 @@ public:
 
     void UpdateDependencies(Instruction *oldValue, Instruction *newValue);
 
+    bool HasOnlyOneDependency();
+
     const ValueDependencies &GetValueDependencies()
     {
         return valueDeps_;

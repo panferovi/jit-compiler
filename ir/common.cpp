@@ -19,6 +19,12 @@ std::ostream &operator<<(std::ostream &os, const Opcode &op)
         case Opcode::MUL:
             os << "Mul";
             break;
+        case Opcode::SHL:
+            os << "Shl";
+            break;
+        case Opcode::XOR:
+            os << "Xor";
+            break;
         case Opcode::COMPARE:
             os << "Compare";
             break;
@@ -51,6 +57,9 @@ std::ostream &operator<<(std::ostream &os, const ResultType &resType)
             break;
         case ResultType::S8:
             os << "s8";
+            break;
+        case ResultType::U8:
+            os << "u8";
             break;
         case ResultType::S16:
             os << "s16";

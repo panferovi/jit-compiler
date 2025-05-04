@@ -25,7 +25,7 @@ ir::Instruction *CreateConstInst(ir::Graph *graph, ir::ResultType resType, int64
     if (constInst == nullptr) {
         constInst =
             new ir::AssignInst(constBlock, ir::InstId {graph->NewInstId()}, ir::Opcode::CONSTANT, resType, constValue);
-        constBlock->InsertInstBack(constInst);
+        constInst->InsertInstBefore(constBlock->GetLastInstruction());
     }
     return constInst;
 }
@@ -38,6 +38,9 @@ PeepHoleOptimizer::OptimizerMap PeepHoleOptimizer::CreateOptimizers()
     OptimizerMap optimizers {};
     optimizers.fill(OptimizeStub);
     optimizers[ir::OpcodeToIndex<ir::Opcode::ADD>()] = OptimizeAdd;
+    optimizers[ir::OpcodeToIndex<ir::Opcode::SHL>()] = OptimizeShl;
+    optimizers[ir::OpcodeToIndex<ir::Opcode::XOR>()] = OptimizeXor;
+    optimizers[ir::OpcodeToIndex<ir::Opcode::PHI>()] = OptimizePhi;
     return optimizers;
 }
 
@@ -167,6 +170,15 @@ void PeepHoleOptimizer::OptimizeXor(ir::Instruction *xorInst)
     auto status = OptimizeConstArithm(xorInst->As<ir::ArithmInst>(), bothConst, firstConst, secondConst);
     if (status == OptStatus::NO_OPT) {
         status = OptimizeSameInputs(xorInst->As<ir::ArithmInst>(), sameInputsOpt);
+    }
+}
+
+/* static */
+void PeepHoleOptimizer::OptimizePhi(ir::Instruction *phiInst)
+{
+    if (phiInst->As<ir::PhiInst>()->HasOnlyOneDependency()) {
+        auto *valueDep = phiInst->As<ir::PhiInst>()->GetValueDependencies().begin()->first;
+        ir::Instruction::UpdateUsersAndEleminate(phiInst, valueDep);
     }
 }
 

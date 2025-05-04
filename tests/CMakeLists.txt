@@ -5,6 +5,7 @@ find_package(GTest REQUIRED)
 add_executable(compiler_gtests
     ir_builder_tests.cpp
     dom_tree_tests.cpp
+    peephole_tests.cpp
 )
 
 target_link_libraries(compiler_gtests

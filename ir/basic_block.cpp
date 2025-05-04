@@ -92,11 +92,18 @@ const std::deque<BasicBlock *> &BasicBlock::GetImmediateDominatees() const
 
 void BasicBlock::IterateOverInstructions(InterruptibleVisitor visitor)
 {
-    for (auto *inst : instructions_) {
-        if (visitor(inst)) {
+    for (auto instIt = instructions_.begin(); instIt != instructions_.end();) {
+        auto next = std::next(instIt);
+        if (visitor(*instIt)) {
             return;
         }
+        instIt = std::next(instIt) != nullptr ? std::next(instIt) : next;
     }
+}
+
+size_t BasicBlock::GetAliveInstructionCount()
+{
+    return instructions_.Size();
 }
 
 }  // namespace compiler::ir

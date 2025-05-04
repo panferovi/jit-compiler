@@ -18,10 +18,10 @@ void Instruction::UpdateUsersAndEleminate(Instruction *inst, Instruction *newIns
     auto &users = inst->users_;
     newInst->AddUsers(users);
     for (auto *user : users) {
-        if (user->GetOpcode() != Opcode::PHI) {
-            user->UpdateInputs(inst, newInst);
-        } else {
+        if (user->GetOpcode() == Opcode::PHI) {
             user->As<PhiInst>()->UpdateDependencies(inst, newInst);
+        } else {
+            user->UpdateInputs(inst, newInst);
         }
     }
     users.clear();
@@ -32,8 +32,14 @@ void Instruction::UpdateUsersAndEleminate(Instruction *inst, Instruction *newIns
 void Instruction::Eleminate(Instruction *inst)
 {
     ASSERT(inst->GetUsers().empty());
-    for (auto *input : inst->GetInputs()) {
-        input->users_.erase(inst);
+    if (inst->GetOpcode() == Opcode::PHI) {
+        for (auto &[input, _] : inst->As<PhiInst>()->GetValueDependencies()) {
+            input->users_.erase(inst);
+        }
+    } else {
+        for (auto *input : inst->GetInputs()) {
+            input->users_.erase(inst);
+        }
     }
     inst->Unlink();
     delete inst;
@@ -130,14 +136,17 @@ void PhiInst::ResolveDependency(Instruction *value, BasicBlock *bb)
 void PhiInst::UpdateDependencies(Instruction *oldValue, Instruction *newValue)
 {
     auto node = valueDeps_.extract(oldValue);
-    ASSERT(node.empty());
+    ASSERT(!node.empty());
     node.key() = newValue;
     auto insertRes = valueDeps_.insert(std::move(node));
-    // TODO: add test for this branch (if phi uses the same const for peephole and creation)
     if (!insertRes.inserted) {
-        ASSERT(insertRes.node.empty());
         valueDeps_[newValue].merge(std::move(insertRes.node.mapped()));
     }
+}
+
+bool PhiInst::HasOnlyOneDependency()
+{
+    return valueDeps_.size() == 1;
 }
 
 }  // namespace compiler::ir

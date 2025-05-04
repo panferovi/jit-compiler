@@ -117,6 +117,8 @@ public:
 
     void IterateOverInstructions(InterruptibleVisitor visitor);
 
+    size_t GetAliveInstructionCount();
+
 private:
     BasicBlock(Id id, Graph *graph) : id_(id), graph_(graph) {}
 

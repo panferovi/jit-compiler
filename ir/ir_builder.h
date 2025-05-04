@@ -18,6 +18,10 @@ class LogicInst;
 class BranchInst;
 class ReturnInst;
 class PhiInst;
+class MemoryInst;
+class LoadInst;
+class StoreInst;
+class CheckInst;
 
 class IRBuilder {
 public:
@@ -46,6 +50,13 @@ public:
     ReturnInst *CreateRetVoid();
 
     PhiInst *CreatePhi(ResultType resType);
+
+    MemoryInst *CreateMemory(ResultType resType, Instruction *count);
+    LoadInst *CreateLoad(MemoryInst *mem, Instruction *idx);
+    StoreInst *CreateStore(MemoryInst *mem, Instruction *idx, Instruction *value);
+
+    CheckInst *CreateNullCheck(MemoryInst *mem);
+    CheckInst *CreateBoundCheck(MemoryInst *mem, Instruction *idx);
 
 private:
     using InstProxyList = std::initializer_list<Instruction *>;

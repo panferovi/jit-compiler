@@ -77,8 +77,6 @@ public:
 
     void UpdateInputs(Instruction *oldInput, Instruction *newInput);
 
-    void UpdateUsers(Instruction *oldUser, Instruction *newUser);
-
     void SetBasicBlock(BasicBlock *bb)
     {
         ownerBB_ = bb;
@@ -198,8 +196,8 @@ public:
 
 class ReturnInst : public Instruction {
 public:
-    ReturnInst(BasicBlock *ownBB, InstId id, Opcode op, ResultType resType, InstProxyList inputs)
-        : Instruction(ownBB, id, op, resType, inputs)
+    ReturnInst(BasicBlock *ownBB, InstId id, ResultType resType, InstProxyList inputs)
+        : Instruction(ownBB, id, Opcode::RETURN, resType, inputs)
     {
         ASSERT((resType == ResultType::VOID && inputs.size() == 0) || inputs.size() == 1);
     }
@@ -220,7 +218,7 @@ public:
 
     void UpdateDependencies(Instruction *oldValue, Instruction *newValue);
 
-    const ValueDependencies &GetValueDependencies()
+    const ValueDependencies &GetValueDependencies() const
     {
         return valueDeps_;
     }
@@ -229,6 +227,48 @@ public:
 
 private:
     ValueDependencies valueDeps_;
+};
+
+class MemoryInst : public Instruction {
+public:
+    MemoryInst(BasicBlock *ownBB, InstId id, ResultType resType, InstProxyList inputs)
+        : Instruction(ownBB, id, Opcode::MEM, resType, inputs)
+    {
+        ASSERT(resType != ResultType::VOID);
+    }
+};
+
+class LoadInst : public Instruction {
+public:
+    LoadInst(BasicBlock *ownBB, InstId id, ResultType resType, InstProxyList inputs)
+        : Instruction(ownBB, id, Opcode::LOAD, resType, inputs)
+    {
+        ASSERT(resType != ResultType::VOID);
+    }
+};
+
+class StoreInst : public Instruction {
+public:
+    StoreInst(BasicBlock *ownBB, InstId id, InstProxyList inputs)
+        : Instruction(ownBB, id, Opcode::STORE, ResultType::VOID, inputs)
+    {
+    }
+};
+
+class CheckInst : public Instruction {
+public:
+    CheckInst(BasicBlock *ownBB, InstId id, CheckType type, InstProxyList inputs)
+        : Instruction(ownBB, id, Opcode::CHECK, ResultType::VOID, inputs), type_(type)
+    {
+    }
+
+    CheckType GetType() const
+    {
+        return type_;
+    }
+
+private:
+    CheckType type_;
 };
 
 }  // namespace compiler::ir

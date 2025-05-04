@@ -109,4 +109,11 @@ ResultType CombineResultType(const Instruction *op1, const Instruction *op2)
     return static_cast<ResultType>(std::max(resType1, resType2));
 }
 
+bool operator<=(ResultType resType1, ResultType resType2)
+{
+    auto t1 = static_cast<int>(resType1);
+    auto t2 = static_cast<int>(resType2);
+    return t1 <= t2;
+}
+
 }  // namespace compiler::ir

@@ -55,12 +55,6 @@ void Instruction::UpdateInputs(Instruction *oldInput, Instruction *newInput)
     }
 }
 
-void Instruction::UpdateUsers(Instruction *oldUser, Instruction *newUser)
-{
-    users_.erase(oldUser);
-    users_.insert(newUser);
-}
-
 void AssignInst::Dump(std::stringstream &ss) const
 {
     Instruction::Dump(ss);

@@ -79,17 +79,49 @@ BranchInst *IRBuilder::CreateCondBr(Instruction *pred, BasicBlock *trueBr, Basic
 
 ReturnInst *IRBuilder::CreateRet(Instruction *retValue)
 {
-    return CreateInstruction<ReturnInst>(Opcode::RETURN, retValue->GetResultType(), InstProxyList {retValue});
+    ASSERT(retValue->GetResultType() != ResultType::VOID);
+    return CreateInstruction<ReturnInst>(retValue->GetResultType(), InstProxyList {retValue});
 }
 
 ReturnInst *IRBuilder::CreateRetVoid()
 {
-    return CreateInstruction<ReturnInst>(Opcode::RETURN, ResultType::VOID, InstProxyList {});
+    return CreateInstruction<ReturnInst>(ResultType::VOID, InstProxyList {});
 }
 
 PhiInst *IRBuilder::CreatePhi(ResultType resType)
 {
     return CreatePhiInstruction(resType);
+}
+
+MemoryInst *IRBuilder::CreateMemory(ResultType resType, Instruction *count)
+{
+    ASSERT(count->GetResultType() != ResultType::VOID);
+    return CreateInstruction<MemoryInst>(resType, InstProxyList {count});
+}
+
+LoadInst *IRBuilder::CreateLoad(MemoryInst *mem, Instruction *idx)
+{
+    ASSERT(idx->GetResultType() != ResultType::VOID);
+    return CreateInstruction<LoadInst>(mem->GetResultType(), InstProxyList {mem, idx});
+}
+
+StoreInst *IRBuilder::CreateStore(MemoryInst *mem, Instruction *idx, Instruction *value)
+{
+    ASSERT(value->GetResultType() != ResultType::VOID);
+    ASSERT(idx->GetResultType() != ResultType::VOID);
+    ASSERT(value->GetResultType() <= mem->GetResultType());
+    return CreateInstruction<StoreInst>(InstProxyList {mem, idx, value});
+}
+
+CheckInst *IRBuilder::CreateNullCheck(MemoryInst *mem)
+{
+    return CreateInstruction<CheckInst>(CheckType::NIL, InstProxyList {mem});
+}
+
+CheckInst *IRBuilder::CreateBoundCheck(MemoryInst *mem, Instruction *idx)
+{
+    ASSERT(idx->GetResultType() != ResultType::VOID);
+    return CreateInstruction<CheckInst>(CheckType::BOUND, InstProxyList {mem, idx});
 }
 
 }  // namespace compiler::ir

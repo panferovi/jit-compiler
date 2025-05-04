@@ -5,6 +5,9 @@
 #include "ir/instruction.h"
 #include "ir/graph.h"
 
+#include <deque>
+#include <unordered_map>
+
 namespace compiler {
 
 namespace {
@@ -179,6 +182,51 @@ void PeepHoleOptimizer::OptimizePhi(ir::Instruction *phiInst)
     if (phiInst->As<ir::PhiInst>()->HasOnlyOneDependency()) {
         auto *valueDep = phiInst->As<ir::PhiInst>()->GetValueDependencies().begin()->first;
         ir::Instruction::UpdateUsersAndEleminate(phiInst, valueDep);
+    }
+}
+
+void CheckOptimizer::Run()
+{
+    DominatorsTree domTree(graph_);
+    domTree.Run();
+
+    auto eleminateChecks = [&domTree](std::deque<ir::Instruction *> &cheks) {
+        while (!cheks.empty()) {
+            auto *check = cheks.front();
+            cheks.pop_front();
+            for (auto otherCheckIt = cheks.begin(); otherCheckIt != cheks.end();) {
+                if (domTree.DoesInstructionDominatesOn(*otherCheckIt, check)) {
+                    Instruction::Eleminate(*otherCheckIt);
+                    otherCheckIt = cheks.erase(otherCheckIt);
+                } else if (domTree.DoesInstructionDominatesOn(check, *otherCheckIt)) {
+                    Instruction::Eleminate(check);
+                    break;
+                } else {
+                    ++otherCheckIt;
+                }
+            }
+        }
+    };
+
+    RPO rpo(graph_);
+    rpo.Run();
+
+    for (auto *bb : rpo.GetRpoVector()) {
+        bb->IterateOverInstructions([&eleminateChecks](ir::Instruction *inst) {
+            if (inst->GetOpcode() != ir::Opcode::MEM) {
+                return false;
+            }
+            std::unordered_map<ir::CheckType, std::deque<ir::Instruction *>> checks;
+            for (auto *user : inst->GetUsers()) {
+                if (user->GetOpcode() == ir::Opcode::CHECK) {
+                    checks[user->As<ir::CheckInst>()->GetType()].push_back(user);
+                }
+            }
+            for (auto &[_, sameTChecks] : checks) {
+                eleminateChecks(sameTChecks);
+            }
+            return false;
+        });
     }
 }
 

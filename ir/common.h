@@ -20,6 +20,10 @@ enum class Opcode : uint32_t {
     COND_BRANCH,
     RETURN,
     PHI,
+    MEM,
+    LOAD,
+    STORE,
+    CHECK,
     COUNT,
     INVALID
 };
@@ -28,6 +32,8 @@ enum class Opcode : uint32_t {
 enum class ResultType { VOID, BOOL, S8, U8, S16, U16, S32, U32, S64, U64, INVALID };
 
 enum class CmpFlags { LE, LT, INVALID };
+
+enum class CheckType { NIL, BOUND };
 
 std::ostream &operator<<(std::ostream &os, const Opcode &op);
 std::ostream &operator<<(std::ostream &os, const ResultType &resType);
@@ -40,6 +46,8 @@ static constexpr uint32_t OpcodeToIndex()
 }
 
 ResultType CombineResultType(const Instruction *op1, const Instruction *op2);
+
+bool operator<=(ResultType resType1, ResultType resType2);
 
 }  // namespace compiler::ir
 

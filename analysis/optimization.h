@@ -47,6 +47,16 @@ private:
     ir::Graph *graph_;
 };
 
+class CheckOptimizer {
+public:
+    explicit CheckOptimizer(ir::Graph *graph) : graph_(graph) {}
+
+    void Run();
+
+private:
+    ir::Graph *graph_;
+};
+
 }  // namespace compiler
 
 #endif  // ANALYSIS_OPTIMIZATION_H

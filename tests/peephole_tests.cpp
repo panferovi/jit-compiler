@@ -53,7 +53,7 @@ TEST(PEEPHOLE_OPT, AddPeepholeOneOpZero)
 
     irBuilder.SetInsertionPoint(bb1);
     auto *v3 = irBuilder.CreateAdd(v0, v1);
-    auto *v4 = irBuilder.CreateRet(v3);
+    [[maybe_unused]] auto *v4 = irBuilder.CreateRet(v3);
 
     PeepHoleOptimizer peepHoleOpt(&graph);
     peepHoleOpt.Run();
@@ -110,7 +110,7 @@ TEST(PEEPHOLE_OPT, AddPeepholeSameValue)
     ASSERT(bb1->GetAliveInstructionCount() == 2);
 
     auto *shlInst = v3->GetFirstOp();
-    auto *constOne = shlInst->GetSecondOp();
+    [[maybe_unused]] auto *constOne = shlInst->GetLastOp();
     ASSERT(shlInst->GetUsers() == ir::Instruction::Users {v3});
     ASSERT(shlInst->GetOpcode() == ir::Opcode::SHL);
     ASSERT(shlInst->GetFirstOp() == v0);
@@ -158,7 +158,7 @@ TEST(PEEPHOLE_OPT, ShlPeepholeFirstOpZero)
 
     irBuilder.SetInsertionPoint(bb1);
     auto *v3 = irBuilder.CreateShl(v1, v0);
-    auto *v4 = irBuilder.CreateRet(v3);
+    [[maybe_unused]] auto *v4 = irBuilder.CreateRet(v3);
 
     PeepHoleOptimizer peepHoleOpt(&graph);
     peepHoleOpt.Run();
@@ -209,7 +209,7 @@ TEST(PEEPHOLE_OPT, ShlPeepholeSecondOpZero)
 
     irBuilder.SetInsertionPoint(bb1);
     auto *v3 = irBuilder.CreateShl(v0, v1);
-    auto *v4 = irBuilder.CreateRet(v3);
+    [[maybe_unused]] auto *v4 = irBuilder.CreateRet(v3);
 
     PeepHoleOptimizer peepHoleOpt(&graph);
     peepHoleOpt.Run();
@@ -260,7 +260,7 @@ TEST(PEEPHOLE_OPT, XorPeepholeOneOpZero)
 
     irBuilder.SetInsertionPoint(bb1);
     auto *v3 = irBuilder.CreateXor(v0, v1);
-    auto *v4 = irBuilder.CreateRet(v3);
+    [[maybe_unused]] auto *v4 = irBuilder.CreateRet(v3);
 
     PeepHoleOptimizer peepHoleOpt(&graph);
     peepHoleOpt.Run();
@@ -315,7 +315,7 @@ TEST(PEEPHOLE_OPT, XorPeepholeSameValue)
 
     ASSERT(bb1->GetAliveInstructionCount() == 1);
 
-    auto *constZero = v3->GetFirstOp();
+    [[maybe_unused]] auto *constZero = v3->GetFirstOp();
     ASSERT(constZero->GetUsers() == ir::Instruction::Users {v3});
     ASSERT(constZero->GetOpcode() == ir::Opcode::CONSTANT);
     ASSERT(constZero->As<ir::AssignInst>()->GetValue() == 0);
@@ -380,7 +380,7 @@ TEST(PEEPHOLE_OPT, ConstFolding)
 
     ASSERT(bb1->GetAliveInstructionCount() == 1);
 
-    auto *constEight = v7->GetFirstOp();
+    [[maybe_unused]] auto *constEight = v7->GetFirstOp();
     ASSERT(constEight->GetUsers() == ir::Instruction::Users {v7});
     ASSERT(constEight->GetOpcode() == ir::Opcode::CONSTANT);
     ASSERT(constEight->As<ir::AssignInst>()->GetValue() == 8);
@@ -470,7 +470,7 @@ TEST(PEEPHOLE_OPT, ConstFoldingWithPhi)
     ASSERT(bb2->GetAliveInstructionCount() == 1);
     ASSERT(bb3->GetAliveInstructionCount() == 1);
 
-    ASSERT(v1->GetUsers() == ir::Instruction::Users {v10})
+    ASSERT(v1->GetUsers() == ir::Instruction::Users {v10});
     ASSERT(v10->GetInputs() == ir::Instruction::Inputs {v1});
 }
 

@@ -40,6 +40,18 @@ std::ostream &operator<<(std::ostream &os, const Opcode &op)
         case Opcode::PHI:
             os << "Phi";
             break;
+        case Opcode::MEM:
+            os << "Mem";
+            break;
+        case Opcode::LOAD:
+            os << "Load";
+            break;
+        case Opcode::STORE:
+            os << "Store";
+            break;
+        case Opcode::CHECK:
+            os << "Check";
+            break;
         default:
             UNREACHABLE();
             break;
@@ -94,6 +106,22 @@ std::ostream &operator<<(std::ostream &os, const CmpFlags &cmpFlags)
             break;
         case CmpFlags::LT:
             os << "LT";
+            break;
+        default:
+            UNREACHABLE();
+            break;
+    }
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const CheckType &checkType)
+{
+    switch (checkType) {
+        case CheckType::NIL:
+            os << "Nil";
+            break;
+        case CheckType::BOUND:
+            os << "Bound";
             break;
         default:
             UNREACHABLE();

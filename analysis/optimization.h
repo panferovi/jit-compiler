@@ -54,6 +54,21 @@ public:
     void Run();
 
 private:
+    static bool OptimizePredStub([[maybe_unused]] ir::Instruction *inst1, [[maybe_unused]] ir::Instruction *inst2)
+    {
+        return false;
+    }
+
+    static bool OptimizePredNil(ir::Instruction *nilInst1, ir::Instruction *nilInst2);
+    static bool OptimizePredBounds(ir::Instruction *boundsInst1, ir::Instruction *boundsInst2);
+
+    static constexpr auto OptimizerCnt = static_cast<uint32_t>(ir::CheckType::COUNT);
+    using OptimizerPredicate = bool (*)(ir::Instruction *inst1, ir::Instruction *inst2);
+    using PredicatesMap = std::array<OptimizerPredicate, OptimizerCnt>;
+
+    static PredicatesMap CreateOptimizerPredicates();
+    static inline PredicatesMap TypeToOptimizerPredicate = CreateOptimizerPredicates();
+
     ir::Graph *graph_;
 };
 

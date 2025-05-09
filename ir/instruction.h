@@ -60,7 +60,7 @@ public:
         return inputs_.front();
     }
 
-    Instruction *GetSecondOp() const
+    Instruction *GetLastOp() const
     {
         return inputs_.back();
     }
@@ -106,9 +106,9 @@ public:
 
     virtual void Dump(std::stringstream &ss) const;
 
-    static void UpdateUsersAndEleminate(Instruction *inst, Instruction *newInst);
+    static void UpdateUsersAndEliminate(Instruction *inst, Instruction *newInst);
 
-    static void Eleminate(Instruction *inst);
+    static void Eliminate(Instruction *inst);
 
     template <typename T>
     T *As()
@@ -238,6 +238,7 @@ public:
     {
         ASSERT(resType != ResultType::VOID);
     }
+    void Dump(std::stringstream &ss) const override;
 };
 
 class LoadInst : public Instruction {
@@ -247,6 +248,8 @@ public:
     {
         ASSERT(resType != ResultType::VOID);
     }
+
+    void Dump(std::stringstream &ss) const override;
 };
 
 class StoreInst : public Instruction {
@@ -255,6 +258,8 @@ public:
         : Instruction(ownBB, id, Opcode::STORE, ResultType::VOID, inputs)
     {
     }
+
+    void Dump(std::stringstream &ss) const override;
 };
 
 class CheckInst : public Instruction {
@@ -268,6 +273,8 @@ public:
     {
         return type_;
     }
+
+    void Dump(std::stringstream &ss) const override;
 
 private:
     CheckType type_;

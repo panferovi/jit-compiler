@@ -53,8 +53,7 @@ void PeepHoleOptimizer::Run()
     rpo.Run();
     for (auto *bb : rpo.GetRpoVector()) {
         bb->IterateOverInstructions([](ir::Instruction *inst) {
-            auto optimizerIdx = static_cast<uint32_t>(inst->GetOpcode());
-            auto *optimizer = OpcodeToOptimizer[optimizerIdx];
+            auto *optimizer = OpcodeToOptimizer[ir::OpcodeToIndex(inst->GetOpcode())];
             optimizer(inst);
             return false;
         });
@@ -72,7 +71,7 @@ PeepHoleOptimizer::OptStatus PeepHoleOptimizer::OptimizeConstArithm(ir::ArithmIn
     }
     ir::Instruction *newInst = nullptr;
     auto *op1 = inst->GetFirstOp();
-    auto *op2 = inst->GetSecondOp();
+    auto *op2 = inst->GetLastOp();
     if (op1Const && op2Const) {
         auto constValue = bothConstOpt(op1->As<ir::AssignInst>()->GetValue(), op2->As<ir::AssignInst>()->GetValue());
         newInst = CreateConstInst(inst->GetBasicBlock()->GetGraph(), ir::CombineResultType(op1, op2), constValue);
@@ -81,7 +80,7 @@ PeepHoleOptimizer::OptStatus PeepHoleOptimizer::OptimizeConstArithm(ir::ArithmIn
                            : secondConstOpt(inst, op2->As<ir::AssignInst>()->GetValue());
     }
     if (newInst != nullptr) {
-        ir::Instruction::UpdateUsersAndEleminate(inst, newInst);
+        ir::Instruction::UpdateUsersAndEliminate(inst, newInst);
         return OptStatus::OPT;
     }
     return OptStatus::CANT_OPT;
@@ -90,12 +89,12 @@ PeepHoleOptimizer::OptStatus PeepHoleOptimizer::OptimizeConstArithm(ir::ArithmIn
 /* static */
 PeepHoleOptimizer::OptStatus PeepHoleOptimizer::OptimizeSameInputs(ir::ArithmInst *inst, SameInputsOpt sameInputsOpt)
 {
-    if (inst->GetFirstOp() != inst->GetSecondOp()) {
+    if (inst->GetFirstOp() != inst->GetLastOp()) {
         return OptStatus::NO_OPT;
     }
     auto *newInst = sameInputsOpt(inst);
     if (newInst != nullptr) {
-        ir::Instruction::UpdateUsersAndEleminate(inst, newInst);
+        ir::Instruction::UpdateUsersAndEliminate(inst, newInst);
         return OptStatus::OPT;
     }
     return OptStatus::CANT_OPT;
@@ -107,7 +106,7 @@ void PeepHoleOptimizer::OptimizeAdd(ir::Instruction *addInst)
     auto bothConst = [](int64_t op1, int64_t op2) { return op1 + op2; };
     auto firstConst = [](int64_t op1, ir::Instruction *inst) {
         if (op1 == 0) {
-            return inst->GetSecondOp();
+            return inst->GetLastOp();
         }
         return ir::Instruction::EmptyInst;
     };
@@ -157,7 +156,7 @@ void PeepHoleOptimizer::OptimizeXor(ir::Instruction *xorInst)
     auto bothConst = [](int64_t op1, int64_t op2) { return op1 ^ op2; };
     auto firstConst = [](int64_t op1, ir::Instruction *inst) {
         if (op1 == 0) {
-            return inst->GetSecondOp();
+            return inst->GetLastOp();
         }
         return ir::Instruction::EmptyInst;
     };
@@ -181,7 +180,7 @@ void PeepHoleOptimizer::OptimizePhi(ir::Instruction *phiInst)
 {
     if (phiInst->As<ir::PhiInst>()->HasOnlyOneDependency()) {
         auto *valueDep = phiInst->As<ir::PhiInst>()->GetValueDependencies().begin()->first;
-        ir::Instruction::UpdateUsersAndEleminate(phiInst, valueDep);
+        ir::Instruction::UpdateUsersAndEliminate(phiInst, valueDep);
     }
 }
 
@@ -190,20 +189,22 @@ void CheckOptimizer::Run()
     DominatorsTree domTree(graph_);
     domTree.Run();
 
-    auto eleminateChecks = [&domTree](std::deque<ir::Instruction *> &cheks) {
+    auto eliminateDominatedChecks = [&domTree](std::deque<ir::Instruction *> &cheks, OptimizerPredicate pred) {
         while (!cheks.empty()) {
             auto *check = cheks.front();
             cheks.pop_front();
             for (auto otherCheckIt = cheks.begin(); otherCheckIt != cheks.end();) {
-                if (domTree.DoesInstructionDominatesOn(*otherCheckIt, check)) {
-                    Instruction::Eleminate(*otherCheckIt);
-                    otherCheckIt = cheks.erase(otherCheckIt);
-                } else if (domTree.DoesInstructionDominatesOn(check, *otherCheckIt)) {
-                    Instruction::Eleminate(check);
-                    break;
-                } else {
-                    ++otherCheckIt;
+                if (pred(check, *otherCheckIt)) {
+                    if (domTree.DoesInstructionDominatesOn(*otherCheckIt, check)) {
+                        Instruction::Eliminate(*otherCheckIt);
+                        otherCheckIt = cheks.erase(otherCheckIt);
+                        continue;
+                    } else if (domTree.DoesInstructionDominatesOn(check, *otherCheckIt)) {
+                        Instruction::Eliminate(check);
+                        break;
+                    }
                 }
+                ++otherCheckIt;
             }
         }
     };
@@ -212,7 +213,7 @@ void CheckOptimizer::Run()
     rpo.Run();
 
     for (auto *bb : rpo.GetRpoVector()) {
-        bb->IterateOverInstructions([&eleminateChecks](ir::Instruction *inst) {
+        bb->IterateOverInstructions([&eliminateDominatedChecks](ir::Instruction *inst) {
             if (inst->GetOpcode() != ir::Opcode::MEM) {
                 return false;
             }
@@ -222,12 +223,45 @@ void CheckOptimizer::Run()
                     checks[user->As<ir::CheckInst>()->GetType()].push_back(user);
                 }
             }
-            for (auto &[_, sameTChecks] : checks) {
-                eleminateChecks(sameTChecks);
+            for (auto &[type, sameTChecks] : checks) {
+                eliminateDominatedChecks(sameTChecks, TypeToOptimizerPredicate[ir::CheckTypeToIndex(type)]);
             }
             return false;
         });
     }
+}
+
+/* static */
+CheckOptimizer::PredicatesMap CheckOptimizer::CreateOptimizerPredicates()
+{
+    PredicatesMap predicates {};
+    predicates.fill(OptimizePredStub);
+    predicates[ir::CheckTypeToIndex<ir::CheckType::NIL>()] = OptimizePredNil;
+    predicates[ir::CheckTypeToIndex<ir::CheckType::BOUND>()] = OptimizePredBounds;
+    return predicates;
+}
+
+/* static */
+bool CheckOptimizer::OptimizePredNil([[maybe_unused]] ir::Instruction *nilInst1,
+                                     [[maybe_unused]] ir::Instruction *nilInst2)
+{
+    ASSERT(nilInst1->GetFirstOp() == nilInst2->GetFirstOp());
+    return true;
+}
+
+/* static */
+bool CheckOptimizer::OptimizePredBounds(ir::Instruction *boundsInst1, ir::Instruction *boundsInst2)
+{
+    ASSERT(boundsInst1->GetFirstOp() == boundsInst2->GetFirstOp());
+    auto *idx1 = boundsInst1->GetLastOp();
+    auto *idx2 = boundsInst2->GetLastOp();
+    if (idx1 == idx2) {
+        return true;
+    }
+    if (idx1->GetOpcode() == ir::Opcode::CONSTANT && idx2->GetOpcode() == ir::Opcode::CONSTANT) {
+        return idx1->As<ir::AssignInst>()->GetValue() == idx2->As<ir::AssignInst>()->GetValue();
+    }
+    return false;
 }
 
 }  // namespace compiler

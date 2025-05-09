@@ -4,13 +4,27 @@
 
 namespace compiler::ir {
 
+namespace {
+
+void DumpInputs(std::stringstream &ss, const Instruction::Inputs &inputs)
+{
+    for (auto inputIt = inputs.cbegin(), inputEnd = inputs.cend(); inputIt != inputEnd; ++inputIt) {
+        ss << 'v' << (*inputIt)->GetInstId().GetId();
+        if (std::next(inputIt) != inputEnd) {
+            ss << ", ";
+        }
+    }
+}
+
+}  // namespace
+
 void Instruction::Dump(std::stringstream &ss) const
 {
     ss << instId_ << '.' << resType_ << ' ' << op_ << ' ';
 }
 
 /* static */
-void Instruction::UpdateUsersAndEleminate(Instruction *inst, Instruction *newInst)
+void Instruction::UpdateUsersAndEliminate(Instruction *inst, Instruction *newInst)
 {
     ASSERT(inst != newInst);
     ASSERT(newInst != nullptr);
@@ -25,11 +39,11 @@ void Instruction::UpdateUsersAndEleminate(Instruction *inst, Instruction *newIns
         }
     }
     users.clear();
-    Instruction::Eleminate(inst);
+    Instruction::Eliminate(inst);
 }
 
 /* static */
-void Instruction::Eleminate(Instruction *inst)
+void Instruction::Eliminate(Instruction *inst)
 {
     ASSERT(inst->GetUsers().empty());
     if (inst->GetOpcode() == Opcode::PHI) {
@@ -99,8 +113,11 @@ void BranchInst::Dump(std::stringstream &ss) const
 void ReturnInst::Dump(std::stringstream &ss) const
 {
     Instruction::Dump(ss);
-    auto &inputs = GetInputs();
-    ss << 'v' << inputs.front()->GetInstId().GetId();
+    if (GetResultType() == ResultType::VOID) {
+        ss << "void";
+    } else {
+        ss << 'v' << GetFirstOp()->GetInstId().GetId();
+    }
 }
 
 void PhiInst::Dump(std::stringstream &ss) const
@@ -141,6 +158,31 @@ void PhiInst::UpdateDependencies(Instruction *oldValue, Instruction *newValue)
 bool PhiInst::HasOnlyOneDependency()
 {
     return valueDeps_.size() == 1;
+}
+
+void MemoryInst::Dump(std::stringstream &ss) const
+{
+    Instruction::Dump(ss);
+    ss << 'v' << GetFirstOp()->GetInstId().GetId();
+}
+
+void LoadInst::Dump(std::stringstream &ss) const
+{
+    Instruction::Dump(ss);
+    ss << 'v' << GetFirstOp()->GetInstId().GetId() << ", v" << GetLastOp()->GetInstId().GetId();
+}
+
+void StoreInst::Dump(std::stringstream &ss) const
+{
+    Instruction::Dump(ss);
+    DumpInputs(ss, GetInputs());
+}
+
+void CheckInst::Dump(std::stringstream &ss) const
+{
+    Instruction::Dump(ss);
+    ss << GetType() << " ";
+    DumpInputs(ss, GetInputs());
 }
 
 }  // namespace compiler::ir

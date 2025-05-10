@@ -17,8 +17,6 @@ namespace compiler::ir {
 class BasicBlock;
 class Instruction;
 
-using InstProxyList = std::initializer_list<Instruction *>;
-
 class Instruction : public utils::IntrusiveListNode<Instruction> {
 public:
     using Inputs = std::list<Instruction *>;
@@ -33,6 +31,11 @@ public:
         for (auto *input : GetInputs()) {
             input->AddUsers(this);
         }
+    }
+
+    void SetBasicBlock(BasicBlock *newBB)
+    {
+        ownBB_ = newBB;
     }
 
     BasicBlock *GetBasicBlock() const
@@ -70,16 +73,23 @@ public:
         return inputs_;
     }
 
-    const Users &GetUsers() const
-    {
-        return users_;
-    }
+    Instruction *GetInput(size_t idx) const;
 
     void UpdateInputs(Instruction *oldInput, Instruction *newInput);
 
-    void SetBasicBlock(BasicBlock *bb)
+    void AddInputs(Instruction *input)
     {
-        ownerBB_ = bb;
+        inputs_.push_back(input);
+    }
+
+    void AddInputs(const Inputs &inputs)
+    {
+        inputs_.insert(inputs_.end(), inputs.begin(), inputs.end());
+    }
+
+    const Users &GetUsers() const
+    {
+        return users_;
     }
 
     void AddUsers(Instruction *user)
@@ -106,6 +116,8 @@ public:
 
     virtual void Dump(std::stringstream &ss) const;
 
+    virtual Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const = 0;
+
     static void UpdateUsersAndEliminate(Instruction *inst, Instruction *newInst);
 
     static void Eliminate(Instruction *inst);
@@ -125,7 +137,6 @@ private:
     ResultType resType_;
     Inputs inputs_;
     Users users_;
-    BasicBlock *ownerBB_ = nullptr;
 };
 
 class AssignInst : public Instruction {
@@ -145,6 +156,8 @@ public:
 
     void Dump(std::stringstream &ss) const override;
 
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
+
 private:
     ConstOrParamId value_;
 };
@@ -161,6 +174,8 @@ public:
     std::pair<bool, bool> CheckInputsAreConst();
 
     void Dump(std::stringstream &ss) const override;
+
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
 };
 
 class LogicInst : public Instruction {
@@ -172,12 +187,14 @@ public:
         ASSERT(inputs.size() == 2);
     }
 
-    CmpFlags GetFlags() const
+    CmpFlags GetCmpFlags() const
     {
         return flags_;
     }
 
     void Dump(std::stringstream &ss) const override;
+
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
 
 private:
     CmpFlags flags_;
@@ -192,6 +209,8 @@ public:
     }
 
     void Dump(std::stringstream &ss) const override;
+
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
 };
 
 class ReturnInst : public Instruction {
@@ -203,6 +222,8 @@ public:
     }
 
     void Dump(std::stringstream &ss) const override;
+
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
 };
 
 class PhiInst : public Instruction {
@@ -227,6 +248,8 @@ public:
 
     void Dump(std::stringstream &ss) const override;
 
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
+
 private:
     ValueDependencies valueDeps_;
 };
@@ -239,6 +262,8 @@ public:
         ASSERT(resType != ResultType::VOID);
     }
     void Dump(std::stringstream &ss) const override;
+
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
 };
 
 class LoadInst : public Instruction {
@@ -250,6 +275,8 @@ public:
     }
 
     void Dump(std::stringstream &ss) const override;
+
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
 };
 
 class StoreInst : public Instruction {
@@ -260,24 +287,48 @@ public:
     }
 
     void Dump(std::stringstream &ss) const override;
+
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
 };
 
 class CheckInst : public Instruction {
 public:
-    CheckInst(BasicBlock *ownBB, InstId id, CheckType type, InstProxyList inputs)
+    CheckInst(BasicBlock *ownBB, InstId id, InstProxyList inputs, CheckType type)
         : Instruction(ownBB, id, Opcode::CHECK, ResultType::VOID, inputs), type_(type)
     {
     }
 
-    CheckType GetType() const
+    CheckType GetCheckType() const
     {
         return type_;
     }
 
     void Dump(std::stringstream &ss) const override;
 
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
+
 private:
     CheckType type_;
+};
+
+class CallStaticInst : public Instruction {
+public:
+    CallStaticInst(BasicBlock *ownBB, InstId id, ResultType retType, InstProxyList args, MethodId calleeId)
+        : Instruction(ownBB, id, Opcode::CALL_STATIC, retType, args), calleeId_(calleeId)
+    {
+    }
+
+    MethodId GetCalleeId() const
+    {
+        return calleeId_;
+    }
+
+    void Dump(std::stringstream &ss) const override;
+
+    Instruction *ShallowCopy(BasicBlock *newBB, InstId id) const override;
+
+private:
+    MethodId calleeId_;
 };
 
 }  // namespace compiler::ir

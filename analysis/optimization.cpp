@@ -2,6 +2,7 @@
 #include "analysis/analysis.h"
 #include "ir/basic_block.h"
 #include "ir/common.h"
+#include "ir/id.h"
 #include "ir/instruction.h"
 #include "ir/graph.h"
 
@@ -31,6 +32,24 @@ ir::Instruction *CreateConstInst(ir::Graph *graph, ir::ResultType resType, int64
         constInst->InsertInstBefore(constBlock->GetLastInstruction());
     }
     return constInst;
+}
+
+ir::Instruction *CreatePhi(ir::BasicBlock *insertionPoint, ir::ResultType resType)
+{
+    auto *graph = insertionPoint->GetGraph();
+    auto instId = ir::InstId {graph->NewInstId(), true};
+    auto *phiInst = new ir::PhiInst {insertionPoint, instId, resType};
+    insertionPoint->InsertPhiInst(phiInst);
+    return phiInst;
+}
+
+ir::Instruction *CreateBr(ir::BasicBlock *insertionPoint)
+{
+    auto *graph = insertionPoint->GetGraph();
+    auto instId = ir::InstId {graph->NewInstId(), false};
+    auto *brInst = new ir::BranchInst {insertionPoint, instId, ir::Opcode::BRANCH, ir::InstProxyList {}};
+    insertionPoint->InsertInstBack(brInst);
+    return brInst;
 }
 
 }  // namespace
@@ -220,7 +239,7 @@ void CheckOptimizer::Run()
             std::unordered_map<ir::CheckType, std::deque<ir::Instruction *>> checks;
             for (auto *user : inst->GetUsers()) {
                 if (user->GetOpcode() == ir::Opcode::CHECK) {
-                    checks[user->As<ir::CheckInst>()->GetType()].push_back(user);
+                    checks[user->As<ir::CheckInst>()->GetCheckType()].push_back(user);
                 }
             }
             for (auto &[type, sameTChecks] : checks) {
@@ -262,6 +281,148 @@ bool CheckOptimizer::OptimizePredBounds(ir::Instruction *boundsInst1, ir::Instru
         return idx1->As<ir::AssignInst>()->GetValue() == idx2->As<ir::AssignInst>()->GetValue();
     }
     return false;
+}
+
+void InliningOptimizer::Run()
+{
+    RPO rpo(graph_);
+    rpo.Run();
+
+    // TODO: use graph iteration method for chain inlining for 
+    for (auto *bb : rpo.GetRpoVector()) {
+        bb->IterateOverInstructions([graph = graph_](ir::Instruction *inst) {
+            if (inst->GetOpcode() == ir::Opcode::CALL_STATIC) {
+                auto *callInst = inst->As<ir::CallStaticInst>();
+                auto *calleeGraph = graph->GetGraphByMethodId(callInst->GetCalleeId());
+                auto [firstCalleeBB, postCallBB] = CloneCalleeGraph(callInst, calleeGraph);
+                MergeDataFLow(callInst, firstCalleeBB, postCallBB);
+                return true;
+            }
+            return false;
+        });
+    }
+}
+
+/* static */
+std::pair<ir::BasicBlock *, ir::BasicBlock *> InliningOptimizer::CloneCalleeGraph(ir::CallStaticInst *callInst,
+                                                                                  ir::Graph *calleeGraph)
+{
+    std::unordered_map<ir::BasicBlock *, ir::BasicBlock *> oldToNewBB;
+    std::unordered_map<ir::Instruction *, ir::Instruction *> oldToNewInst;
+    auto *graph = callInst->GetBasicBlock()->GetGraph();
+    auto *calleeConstBB = calleeGraph->GetStartBlock();
+    calleeConstBB->IterateOverInstructions([&oldToNewInst, graph, callInst](ir::Instruction *constOrParam) {
+        [[maybe_unused]] bool inserted = false;
+        if (constOrParam->GetOpcode() == ir::Opcode::CONSTANT) {
+            auto constValue = constOrParam->As<ir::AssignInst>()->GetValue();
+            auto *newInst = CreateConstInst(graph, constOrParam->GetResultType(), constValue);
+            inserted = oldToNewInst.insert({constOrParam, newInst}).second;
+        } else if (constOrParam->GetOpcode() == ir::Opcode::PARAMETER) {
+            auto paramId = constOrParam->As<ir::AssignInst>()->GetValue();
+            auto *newInst = callInst->GetInput(paramId);
+            inserted = oldToNewInst.insert({constOrParam, newInst}).second;
+        }
+        ASSERT(inserted || constOrParam->GetOpcode() == ir::Opcode::BRANCH);
+        return false;
+    });
+    calleeGraph->IterateOverBlocks([&oldToNewInst, &oldToNewBB, graph, calleeConstBB](ir::BasicBlock *calleeBB) {
+        if (calleeBB == calleeConstBB) {
+            return;
+        }
+        auto *newBB = ir::BasicBlock::Create(graph);
+        oldToNewBB.insert({calleeBB, newBB});
+        calleeBB->IterateOverInstructions([&oldToNewInst, newBB, graph](ir::Instruction *inst) {
+            auto instId = ir::InstId {graph->NewInstId(), inst->GetInstId().IsPhi()};
+            ir::Instruction *newInst = nullptr;
+            if (inst->GetOpcode() != ir::Opcode::RETURN) {
+                newInst = inst->ShallowCopy(newBB, instId);
+            } else {
+                newInst = CreateBr(newBB);
+            }
+            [[maybe_unused]] auto inserted = oldToNewInst.insert({inst, newInst}).second;
+            ASSERT(inserted);
+            return false;
+        });
+    });
+    auto *firstCalleeBlock = oldToNewBB[calleeConstBB->GetTrueSuccessor()];
+    auto *postCallBB = UpdateDataFlowOfInlinedGraph(callInst, std::move(oldToNewBB), std::move(oldToNewInst));
+    return {firstCalleeBlock, postCallBB};
+}
+
+/* static */
+ir::BasicBlock *InliningOptimizer::UpdateDataFlowOfInlinedGraph(ir::CallStaticInst *callInst,
+                                                                Mapping<ir::BasicBlock> oldToNewBB,
+                                                                Mapping<ir::Instruction> oldToNewInst)
+{
+    auto *postCallBB = ir::BasicBlock::Create(callInst->GetBasicBlock()->GetGraph());
+    ir::Instruction *postCallPhi = nullptr;
+    for (auto &[oldBB, newBB] : oldToNewBB) {
+        if (oldBB->GetFalseSuccessor() != nullptr) {
+            newBB->SetFalseSuccessor(oldToNewBB[oldBB->GetFalseSuccessor()]);
+        }
+        if (oldBB->GetTrueSuccessor() != nullptr) {
+            newBB->SetTrueSuccessor(oldToNewBB[oldBB->GetTrueSuccessor()]);
+        } else {
+            auto *oldRetInst = oldBB->GetLastInstruction();
+            ASSERT(oldRetInst->GetOpcode() == ir::Opcode::RETURN);
+            newBB->SetTrueSuccessor(postCallBB);
+            if (oldRetInst->GetResultType() != ir::ResultType::VOID) {
+                if (postCallPhi == nullptr) {
+                    postCallPhi = CreatePhi(postCallBB, oldRetInst->GetFirstOp()->GetResultType());
+                }
+                // TODO: don't create phi with only one dependency
+                postCallPhi->As<ir::PhiInst>()->ResolveDependency(oldToNewInst[oldRetInst->GetFirstOp()], newBB);
+            }
+        }
+    }
+    for (auto &[oldInst, newInst] : oldToNewInst) {
+        for (auto *oldUser : oldInst->GetUsers()) {
+            newInst->AddUsers(oldToNewInst[oldUser]);
+        }
+        if (oldInst->GetOpcode() == ir::Opcode::PHI) {
+            ASSERT(newInst->GetOpcode() == ir::Opcode::PHI);
+            for (auto &[oldValue, oldBBs] : oldInst->As<ir::PhiInst>()->GetValueDependencies()) {
+                auto *newValue = oldToNewInst[oldValue];
+                for (auto *oldBB : oldBBs) {
+                    newInst->As<ir::PhiInst>()->ResolveDependency(newValue, oldToNewBB[oldBB]);
+                }
+            }
+        } else if (oldInst->GetOpcode() != ir::Opcode::RETURN) {
+            for (auto *oldInput : oldInst->GetInputs()) {
+                newInst->AddInputs(oldToNewInst[oldInput]);
+            }
+        }
+    }
+    return postCallBB;
+}
+
+/* static */
+void InliningOptimizer::MergeDataFLow(ir::CallStaticInst *callInst, ir::BasicBlock *firstCalleeBB, ir::BasicBlock *postCallBB)
+{
+    ASSERT(postCallBB->GetAliveInstructionCount() < 2);
+    auto *replacingCallInst = postCallBB->GetLastInstruction();
+    auto *postCallInst = callInst->Next()->AsItem();
+    postCallInst->Unlink();
+    if (postCallInst->GetOpcode() != ir::Opcode::PHI) {
+        postCallBB->InsertInstBack(postCallInst);
+    } else {
+        postCallBB->InsertPhiInst(postCallInst);
+    }
+    postCallBB->IterateOverInstructions([postCallBB](ir::Instruction *inst) {
+        inst->SetBasicBlock(postCallBB);
+        return false;
+    });
+
+    auto *callerBB = callInst->GetBasicBlock();
+    callerBB->UpdateDataFlow(firstCalleeBB, nullptr, postCallBB);
+    CreateBr(callerBB);
+
+    if (replacingCallInst != nullptr) {
+        ir::Instruction::UpdateUsersAndEliminate(callInst, replacingCallInst);
+    } else {
+        ASSERT(callInst->GetResultType() == ir::ResultType::VOID);
+        ir::Instruction::Eliminate(callInst);
+    }
 }
 
 }  // namespace compiler

@@ -22,6 +22,7 @@ class MemoryInst;
 class LoadInst;
 class StoreInst;
 class CheckInst;
+class CallStaticInst;
 
 class IRBuilder {
 public:
@@ -57,6 +58,8 @@ public:
 
     CheckInst *CreateNullCheck(MemoryInst *mem);
     CheckInst *CreateBoundCheck(MemoryInst *mem, Instruction *idx);
+
+    CallStaticInst *CreateCallStatic(MethodId id, InstProxyList args, ResultType retType);
 
 private:
     using InstProxyList = std::initializer_list<Instruction *>;

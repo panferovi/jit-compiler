@@ -16,6 +16,7 @@ add_library(jit_compiler STATIC
     ir/common.cpp
     ir/ir_builder.cpp
     ir/basic_block.cpp
+    ir/call_graph.cpp
     ir/instruction.cpp
     analysis/analysis.cpp
     analysis/optimization.cpp

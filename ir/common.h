@@ -24,6 +24,7 @@ enum class Opcode : uint32_t {
     LOAD,
     STORE,
     CHECK,
+    CALL_STATIC,
     COUNT,
     INVALID
 };
@@ -34,6 +35,9 @@ enum class ResultType { VOID, BOOL, S8, U8, S16, U16, S32, U32, S64, U64, INVALI
 enum class CmpFlags { LE, LT, INVALID };
 
 enum class CheckType : uint32_t { NIL, BOUND, COUNT };
+
+using MethodId = uint32_t;
+using InstProxyList = std::initializer_list<Instruction *>;
 
 std::ostream &operator<<(std::ostream &os, const Opcode &op);
 std::ostream &operator<<(std::ostream &os, const ResultType &resType);

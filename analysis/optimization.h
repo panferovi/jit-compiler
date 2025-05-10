@@ -4,13 +4,16 @@
 #include "ir/common.h"
 
 #include <array>
+#include <unordered_map>
 
 namespace compiler {
 
 namespace ir {
 class Graph;
+class BasicBlock;
 class Instruction;
 class ArithmInst;
+class CallStaticInst;
 }  // namespace ir
 
 class PeepHoleOptimizer {
@@ -68,6 +71,30 @@ private:
 
     static PredicatesMap CreateOptimizerPredicates();
     static inline PredicatesMap TypeToOptimizerPredicate = CreateOptimizerPredicates();
+
+    ir::Graph *graph_;
+};
+
+class InliningOptimizer {
+public:
+    explicit InliningOptimizer(ir::Graph *graph) : graph_(graph) {}
+
+    void Run();
+
+private:
+    template <typename T>
+    using Mapping = std::unordered_map<T *, T *>;
+
+    /// @return first and last blocks of inlined graph
+    static std::pair<ir::BasicBlock *, ir::BasicBlock *> CloneCalleeGraph(ir::CallStaticInst *callInst,
+                                                                          ir::Graph *calleeGraph);
+
+    /// @return last block of inlined graph
+    static ir::BasicBlock *UpdateDataFlowOfInlinedGraph(ir::CallStaticInst *callInst,
+                                                        Mapping<ir::BasicBlock> oldToNewBB,
+                                                        Mapping<ir::Instruction> oldToNewInst);
+
+    static void MergeDataFLow(ir::CallStaticInst *callInst, ir::BasicBlock *firstCalleeBB, ir::BasicBlock *postCallBB);
 
     ir::Graph *graph_;
 };

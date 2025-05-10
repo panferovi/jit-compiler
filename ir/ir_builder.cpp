@@ -115,13 +115,18 @@ StoreInst *IRBuilder::CreateStore(MemoryInst *mem, Instruction *idx, Instruction
 
 CheckInst *IRBuilder::CreateNullCheck(MemoryInst *mem)
 {
-    return CreateInstruction<CheckInst>(CheckType::NIL, InstProxyList {mem});
+    return CreateInstruction<CheckInst>(InstProxyList {mem}, CheckType::NIL);
 }
 
 CheckInst *IRBuilder::CreateBoundCheck(MemoryInst *mem, Instruction *idx)
 {
     ASSERT(idx->GetResultType() != ResultType::VOID);
-    return CreateInstruction<CheckInst>(CheckType::BOUND, InstProxyList {mem, idx});
+    return CreateInstruction<CheckInst>(InstProxyList {mem, idx}, CheckType::BOUND);
+}
+
+CallStaticInst *IRBuilder::CreateCallStatic(MethodId id, InstProxyList args, ResultType retType)
+{
+    return CreateInstruction<CallStaticInst>(retType, args, id);
 }
 
 }  // namespace compiler::ir

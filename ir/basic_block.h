@@ -7,7 +7,7 @@
 #include "utils/macros.h"
 
 #include <cstdint>
-#include <list>
+#include <set>
 #include <vector>
 #include <deque>
 #include <functional>
@@ -24,7 +24,7 @@ public:
     NO_MOVE_SEMANTIC(BasicBlock);
     ~BasicBlock();
 
-    using Predecessors = std::list<BasicBlock *>;
+    using Predecessors = std::set<BasicBlock *>;
     using InterruptibleVisitor = std::function<bool(Instruction *)>;
 
     Id GetId() const
@@ -39,33 +39,26 @@ public:
 
     void AddPredeccessor(BasicBlock *bb)
     {
-        predecessors_.push_back(bb);
+        predecessors_.insert(bb);
     }
 
-    void SetTrueSuccessor(BasicBlock *bb)
+    const Predecessors &GetPredecessors() const
     {
-        ASSERT(trueSuccessor_ == nullptr);
-        ASSERT(bb != nullptr);
-        ASSERT(bb != falseSuccessor_);
-        trueSuccessor_ = bb;
-        bb->AddPredeccessor(this);
+        return predecessors_;
     }
 
-    void SetFalseSuccessor(BasicBlock *bb)
-    {
-        ASSERT(falseSuccessor_ == nullptr);
-        ASSERT(bb != nullptr);
-        ASSERT(bb != trueSuccessor_);
-        falseSuccessor_ = bb;
-        bb->AddPredeccessor(this);
-    }
+    void SetTrueSuccessor(BasicBlock *trueSucc);
 
-    BasicBlock *GetTrueSuccessor()
+    void SetFalseSuccessor(BasicBlock *falseSucc);
+
+    void UpdateDataFlow(BasicBlock *newTrueSucc, BasicBlock *newFalseSucc, BasicBlock *newSuccPredeccessor);
+
+    BasicBlock *GetTrueSuccessor() const
     {
         return trueSuccessor_;
     }
 
-    BasicBlock *GetFalseSuccessor()
+    BasicBlock *GetFalseSuccessor() const
     {
         return falseSuccessor_;
     }
@@ -121,6 +114,8 @@ public:
 
 private:
     BasicBlock(Id id, Graph *graph) : id_(id), graph_(graph) {}
+
+    void UpdatePredecessors(BasicBlock *oldPredecc, BasicBlock *newPredecc);
 
     Id id_;
     Graph *graph_;

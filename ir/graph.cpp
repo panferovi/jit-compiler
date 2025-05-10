@@ -1,5 +1,7 @@
 #include "ir/graph.h"
 #include "ir/basic_block.h"
+#include "ir/call_graph.h"
+#include "ir/common.h"
 
 namespace compiler::ir {
 
@@ -42,6 +44,27 @@ Graph::~Graph()
     while (basicBlocks_.NonEmpty()) {
         auto *bb = basicBlocks_.PopFront();
         delete bb;
+    }
+}
+
+void Graph::LinkToCallGraph(std::string_view methodName)
+{
+    id_ = callGraph_->LinkGraph(methodName, this);
+}
+
+Graph *Graph::GetGraphByMethodId(MethodId methodId) const
+{
+    ASSERT(callGraph_ != nullptr);
+    return callGraph_->GetGraphByMethodId(methodId);
+}
+
+void Graph::IterateOverBlocks(const BlockVisitor &visitor)
+{
+    for (auto blockIt = basicBlocks_.begin(); blockIt != basicBlocks_.end();) {
+        // visitor can link new blocks, but not eliminate block
+        visitor(*blockIt);
+        blockIt = std::next(blockIt);
+        ASSERT(blockIt != nullptr);
     }
 }
 

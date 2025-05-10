@@ -116,7 +116,7 @@ TEST(IR_BUILDER, Factorial)
     ASSERT(v5->GetBasicBlock() == bb2);
 
     ASSERT(v6->GetOpcode() == ir::Opcode::COMPARE);
-    ASSERT(v6->GetFlags() == ir::CmpFlags::LE);
+    ASSERT(v6->GetCmpFlags() == ir::CmpFlags::LE);
     ASSERT(v6->GetInputs() == ir::Instruction::Inputs({v5, v0}));
     ASSERT(v6->GetUsers() == ir::Instruction::Users {v7});
     ASSERT(v6->GetBasicBlock() == bb2);

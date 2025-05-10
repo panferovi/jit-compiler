@@ -1,4 +1,5 @@
 #include "ir/basic_block.h"
+#include "ir/common.h"
 #include "ir/instruction.h"
 #include "ir/graph.h"
 
@@ -51,6 +52,50 @@ std::vector<BasicBlock *> BasicBlock::GetSuccessors()
     return succ;
 }
 
+void BasicBlock::SetTrueSuccessor(BasicBlock *trueSucc)
+{
+    ASSERT(trueSuccessor_ == nullptr);
+    ASSERT(trueSucc != nullptr);
+    ASSERT(trueSucc != falseSuccessor_);
+    trueSuccessor_ = trueSucc;
+    trueSucc->AddPredeccessor(this);
+}
+
+void BasicBlock::SetFalseSuccessor(BasicBlock *falseSucc)
+{
+    ASSERT(falseSuccessor_ == nullptr);
+    ASSERT(falseSucc != nullptr);
+    ASSERT(falseSucc != trueSuccessor_);
+    falseSuccessor_ = falseSucc;
+    falseSucc->AddPredeccessor(this);
+}
+
+void BasicBlock::UpdateDataFlow(BasicBlock *newTrueSucc, BasicBlock *newFalseSucc, BasicBlock *newSuccPredeccessor)
+{
+    ASSERT(newSuccPredeccessor != nullptr);
+    if (trueSuccessor_ != nullptr) {
+        trueSuccessor_->UpdatePredecessors(this, newSuccPredeccessor);
+    }
+    if (falseSuccessor_ != nullptr) {
+        falseSuccessor_->UpdatePredecessors(this, newSuccPredeccessor);
+    }
+    trueSuccessor_ = newTrueSucc;
+    if (newTrueSucc) {
+        newTrueSucc->AddPredeccessor(this);
+    }
+    falseSuccessor_ = newFalseSucc;
+    if (newFalseSucc) {
+        newFalseSucc->AddPredeccessor(this);
+    }
+}
+
+void BasicBlock::UpdatePredecessors(BasicBlock *oldPredecc, BasicBlock *newPredecc)
+{
+    [[maybe_unused]] auto removed = predecessors_.erase(oldPredecc);
+    ASSERT(removed == 1);
+    predecessors_.insert(newPredecc);
+}
+
 void BasicBlock::Dump(std::stringstream &ss) const
 {
     ss << "BB." << id_ << ':' << '\n';
@@ -97,7 +142,7 @@ void BasicBlock::IterateOverInstructions(InterruptibleVisitor visitor)
         if (visitor(*instIt)) {
             return;
         }
-        instIt = std::next(instIt) != nullptr ? std::next(instIt) : next;
+        instIt = next;
     }
 }
 

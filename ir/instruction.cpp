@@ -16,6 +16,18 @@ void DumpInputs(std::stringstream &ss, const Instruction::Inputs &inputs)
     }
 }
 
+template <typename InstType, typename... InstArgs>
+Instruction *CreateInstruction(InstArgs... args)
+{
+    auto *inst = new InstType {std::forward<InstArgs>(args)...};
+    if (inst->GetOpcode() != Opcode::PHI) {
+        inst->GetBasicBlock()->InsertInstBack(inst);
+    } else {
+        inst->GetBasicBlock()->InsertPhiInst(inst);
+    }
+    return inst;
+}
+
 }  // namespace
 
 void Instruction::Dump(std::stringstream &ss) const
@@ -69,10 +81,21 @@ void Instruction::UpdateInputs(Instruction *oldInput, Instruction *newInput)
     }
 }
 
+Instruction *Instruction::GetInput(size_t idx) const
+{
+    ASSERT(inputs_.size() < idx);
+    return *std::next(inputs_.begin(), idx);
+}
+
 void AssignInst::Dump(std::stringstream &ss) const
 {
     Instruction::Dump(ss);
     ss << value_;
+}
+
+Instruction *AssignInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<AssignInst>(newBB, id, GetOpcode(), GetResultType(), GetValue());
 }
 
 void ArithmInst::Dump(std::stringstream &ss) const
@@ -82,11 +105,16 @@ void ArithmInst::Dump(std::stringstream &ss) const
     ss << 'v' << inputs.front()->GetInstId().GetId() << ", v" << inputs.back()->GetInstId().GetId();
 }
 
+Instruction *ArithmInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<ArithmInst>(newBB, id, GetOpcode(), GetResultType(), InstProxyList {});
+}
+
 std::pair<bool, bool> ArithmInst::CheckInputsAreConst()
 {
     auto *op1 = GetInputs().front();
     auto *op2 = GetInputs().back();
-    return {op1->GetOpcode() == ir::Opcode::CONSTANT, op2->GetOpcode() == ir::Opcode::CONSTANT};
+    return {op1->GetOpcode() == Opcode::CONSTANT, op2->GetOpcode() == Opcode::CONSTANT};
 }
 
 void LogicInst::Dump(std::stringstream &ss) const
@@ -95,6 +123,11 @@ void LogicInst::Dump(std::stringstream &ss) const
     ss << flags_ << ' ';
     auto &inputs = GetInputs();
     ss << 'v' << inputs.front()->GetInstId().GetId() << ", v" << inputs.back()->GetInstId().GetId();
+}
+
+Instruction *LogicInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<LogicInst>(newBB, id, GetOpcode(), InstProxyList {}, GetCmpFlags());
 }
 
 void BranchInst::Dump(std::stringstream &ss) const
@@ -110,6 +143,11 @@ void BranchInst::Dump(std::stringstream &ss) const
     }
 }
 
+Instruction *BranchInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<BranchInst>(newBB, id, GetOpcode(), InstProxyList {});
+}
+
 void ReturnInst::Dump(std::stringstream &ss) const
 {
     Instruction::Dump(ss);
@@ -118,6 +156,11 @@ void ReturnInst::Dump(std::stringstream &ss) const
     } else {
         ss << 'v' << GetFirstOp()->GetInstId().GetId();
     }
+}
+
+Instruction *ReturnInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<ReturnInst>(newBB, id, GetResultType(), InstProxyList {});
 }
 
 void PhiInst::Dump(std::stringstream &ss) const
@@ -135,6 +178,11 @@ void PhiInst::Dump(std::stringstream &ss) const
             ss << ", ";
         }
     }
+}
+
+Instruction *PhiInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<PhiInst>(newBB, id, GetResultType());
 }
 
 void PhiInst::ResolveDependency(Instruction *value, BasicBlock *bb)
@@ -166,10 +214,20 @@ void MemoryInst::Dump(std::stringstream &ss) const
     ss << 'v' << GetFirstOp()->GetInstId().GetId();
 }
 
+Instruction *MemoryInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<MemoryInst>(newBB, id, GetResultType(), InstProxyList {});
+}
+
 void LoadInst::Dump(std::stringstream &ss) const
 {
     Instruction::Dump(ss);
     ss << 'v' << GetFirstOp()->GetInstId().GetId() << ", v" << GetLastOp()->GetInstId().GetId();
+}
+
+Instruction *LoadInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<LoadInst>(newBB, id, GetResultType(), InstProxyList {});
 }
 
 void StoreInst::Dump(std::stringstream &ss) const
@@ -178,11 +236,33 @@ void StoreInst::Dump(std::stringstream &ss) const
     DumpInputs(ss, GetInputs());
 }
 
+Instruction *StoreInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<StoreInst>(newBB, id, InstProxyList {});
+}
+
 void CheckInst::Dump(std::stringstream &ss) const
 {
     Instruction::Dump(ss);
-    ss << GetType() << " ";
+    ss << GetCheckType() << " ";
     DumpInputs(ss, GetInputs());
+}
+
+Instruction *CheckInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<CheckInst>(newBB, id, InstProxyList {}, GetCheckType());
+}
+
+void CallStaticInst::Dump(std::stringstream &ss) const
+{
+    Instruction::Dump(ss);
+    ss << GetCalleeId() << " Ret: " << GetResultType();
+    DumpInputs(ss, GetInputs());
+}
+
+Instruction *CallStaticInst::ShallowCopy(BasicBlock *newBB, InstId id) const
+{
+    return CreateInstruction<CallStaticInst>(newBB, id, GetResultType(), InstProxyList {}, GetCalleeId());
 }
 
 }  // namespace compiler::ir

@@ -1,7 +1,4 @@
 #include <gtest/gtest.h>
-#include <sstream>
-#include <iostream>
-#include <unordered_map>
 
 #include "analysis/optimization.h"
 #include "ir/basic_block.h"

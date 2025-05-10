@@ -51,7 +51,7 @@ public:
 
     void SetFalseSuccessor(BasicBlock *falseSucc);
 
-    void UpdateDataFlow(BasicBlock *newTrueSucc, BasicBlock *newFalseSucc, BasicBlock *newSuccPredeccessor);
+    void UpdateControlFlow(BasicBlock *newTrueSucc, BasicBlock *newFalseSucc, BasicBlock *newSuccPredeccessor);
 
     BasicBlock *GetTrueSuccessor() const
     {
@@ -115,7 +115,7 @@ public:
 private:
     BasicBlock(Id id, Graph *graph) : id_(id), graph_(graph) {}
 
-    void UpdatePredecessors(BasicBlock *oldPredecc, BasicBlock *newPredecc);
+    void RemovePredecessor(BasicBlock *oldPredecc);
 
     Id id_;
     Graph *graph_;

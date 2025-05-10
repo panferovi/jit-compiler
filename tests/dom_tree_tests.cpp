@@ -1,6 +1,4 @@
 #include <gtest/gtest.h>
-#include <sstream>
-#include <iostream>
 
 #include "analysis/analysis.h"
 #include "ir/basic_block.h"

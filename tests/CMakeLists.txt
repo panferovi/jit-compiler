@@ -7,6 +7,7 @@ add_executable(compiler_gtests
     dom_tree_tests.cpp
     peephole_tests.cpp
     checks_elemination_tests.cpp
+    graph_inlining_tests.cpp
 )
 
 target_compile_options(compiler_gtests PUBLIC -g -O0 -Wno-unused-lambda-capture)

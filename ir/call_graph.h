@@ -16,7 +16,7 @@ public:
     NO_COPY_SEMANTIC(CallGraph);
     DEFAULT_MOVE_CTOR(CallGraph);
     NO_MOVE_OPERATOR(CallGraph);
-    ~CallGraph();
+    ~CallGraph() = default;
 
     MethodId LinkGraph(std::string_view methodName, Graph *graph);
 

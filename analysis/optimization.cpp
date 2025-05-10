@@ -288,9 +288,8 @@ void InliningOptimizer::Run()
     RPO rpo(graph_);
     rpo.Run();
 
-    // TODO: use graph iteration method for chain inlining for 
-    for (auto *bb : rpo.GetRpoVector()) {
-        bb->IterateOverInstructions([graph = graph_](ir::Instruction *inst) {
+    graph_->IterateOverBlocks([graph = graph_](ir::BasicBlock *bb) {
+        bb->IterateOverInstructions([graph](ir::Instruction *inst) {
             if (inst->GetOpcode() == ir::Opcode::CALL_STATIC) {
                 auto *callInst = inst->As<ir::CallStaticInst>();
                 auto *calleeGraph = graph->GetGraphByMethodId(callInst->GetCalleeId());
@@ -300,7 +299,7 @@ void InliningOptimizer::Run()
             }
             return false;
         });
-    }
+    });
 }
 
 /* static */
@@ -397,24 +396,26 @@ ir::BasicBlock *InliningOptimizer::UpdateDataFlowOfInlinedGraph(ir::CallStaticIn
 }
 
 /* static */
-void InliningOptimizer::MergeDataFLow(ir::CallStaticInst *callInst, ir::BasicBlock *firstCalleeBB, ir::BasicBlock *postCallBB)
+void InliningOptimizer::MergeDataFLow(ir::CallStaticInst *callInst, ir::BasicBlock *firstCalleeBB,
+                                      ir::BasicBlock *postCallBB)
 {
     ASSERT(postCallBB->GetAliveInstructionCount() < 2);
     auto *replacingCallInst = postCallBB->GetLastInstruction();
-    auto *postCallInst = callInst->Next()->AsItem();
-    postCallInst->Unlink();
-    if (postCallInst->GetOpcode() != ir::Opcode::PHI) {
-        postCallBB->InsertInstBack(postCallInst);
-    } else {
-        postCallBB->InsertPhiInst(postCallInst);
+    auto *lastCallerInst = callInst->GetBasicBlock()->GetLastInstruction();
+    auto *postCallInst = ir::Instruction::EmptyInst;
+    while (postCallInst != lastCallerInst) {
+        postCallInst = callInst->Next()->AsItem();
+        postCallInst->Unlink();
+        if (postCallInst->GetOpcode() != ir::Opcode::PHI) {
+            postCallBB->InsertInstBack(postCallInst);
+        } else {
+            postCallBB->InsertPhiInst(postCallInst);
+        }
+        postCallInst->UpdateBasicBlock(postCallBB);
     }
-    postCallBB->IterateOverInstructions([postCallBB](ir::Instruction *inst) {
-        inst->SetBasicBlock(postCallBB);
-        return false;
-    });
 
     auto *callerBB = callInst->GetBasicBlock();
-    callerBB->UpdateDataFlow(firstCalleeBB, nullptr, postCallBB);
+    callerBB->UpdateControlFlow(firstCalleeBB, nullptr, postCallBB);
     CreateBr(callerBB);
 
     if (replacingCallInst != nullptr) {

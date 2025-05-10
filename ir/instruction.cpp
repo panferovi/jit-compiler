@@ -2,6 +2,9 @@
 #include "ir/common.h"
 #include "ir/basic_block.h"
 
+#include <sstream>
+#include <utility>
+
 namespace compiler::ir {
 
 namespace {
@@ -71,6 +74,18 @@ void Instruction::Eliminate(Instruction *inst)
     delete inst;
 }
 
+void Instruction::UpdateBasicBlock(BasicBlock *newBB)
+{
+    ASSERT(ownBB_ != nullptr);
+    ASSERT(newBB != nullptr);
+    auto *oldBB = std::exchange(ownBB_, newBB);
+    for (auto *user : GetUsers()) {
+        if (user->GetOpcode() == ir::Opcode::PHI) {
+            user->As<ir::PhiInst>()->UpdateValueBasicBlock(this, oldBB, newBB);
+        }
+    }
+}
+
 void Instruction::UpdateInputs(Instruction *oldInput, Instruction *newInput)
 {
     for (auto &input : inputs_) {
@@ -83,7 +98,7 @@ void Instruction::UpdateInputs(Instruction *oldInput, Instruction *newInput)
 
 Instruction *Instruction::GetInput(size_t idx) const
 {
-    ASSERT(inputs_.size() < idx);
+    ASSERT(idx < inputs_.size());
     return *std::next(inputs_.begin(), idx);
 }
 
@@ -203,6 +218,17 @@ void PhiInst::UpdateDependencies(Instruction *oldValue, Instruction *newValue)
     }
 }
 
+void PhiInst::UpdateValueBasicBlock(Instruction *value, BasicBlock *oldBB, BasicBlock *newBB)
+{
+    auto valueDepIt = valueDeps_.find(value);
+    ASSERT(valueDepIt != valueDeps_.end());
+    for (auto &bb : valueDepIt->second) {
+        if (bb == oldBB) {
+            bb = newBB;
+        }
+    }
+}
+
 bool PhiInst::HasOnlyOneDependency()
 {
     return valueDeps_.size() == 1;
@@ -256,7 +282,7 @@ Instruction *CheckInst::ShallowCopy(BasicBlock *newBB, InstId id) const
 void CallStaticInst::Dump(std::stringstream &ss) const
 {
     Instruction::Dump(ss);
-    ss << GetCalleeId() << " Ret: " << GetResultType();
+    ss << "id: " << GetCalleeId() << " Ret: " << GetResultType() << ' ';
     DumpInputs(ss, GetInputs());
 }
 

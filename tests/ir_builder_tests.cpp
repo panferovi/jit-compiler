@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 #include <sstream>
 #include <iostream>
-#include <unordered_map>
 
 #include "ir/basic_block.h"
 #include "ir/common.h"

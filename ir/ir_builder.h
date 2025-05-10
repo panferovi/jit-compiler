@@ -59,7 +59,7 @@ public:
     CheckInst *CreateNullCheck(MemoryInst *mem);
     CheckInst *CreateBoundCheck(MemoryInst *mem, Instruction *idx);
 
-    CallStaticInst *CreateCallStatic(MethodId id, InstProxyList args, ResultType retType);
+    CallStaticInst *CreateCallStatic(MethodId id, ResultType retType, InstProxyList args);
 
 private:
     using InstProxyList = std::initializer_list<Instruction *>;

@@ -70,14 +70,19 @@ void BasicBlock::SetFalseSuccessor(BasicBlock *falseSucc)
     falseSucc->AddPredeccessor(this);
 }
 
-void BasicBlock::UpdateDataFlow(BasicBlock *newTrueSucc, BasicBlock *newFalseSucc, BasicBlock *newSuccPredeccessor)
+void BasicBlock::UpdateControlFlow(BasicBlock *newTrueSucc, BasicBlock *newFalseSucc, BasicBlock *newSuccPredeccessor)
 {
     ASSERT(newSuccPredeccessor != nullptr);
+    ASSERT(newSuccPredeccessor->GetTrueSuccessor() == nullptr);
+    ASSERT(newSuccPredeccessor->GetFalseSuccessor() == nullptr);
+
     if (trueSuccessor_ != nullptr) {
-        trueSuccessor_->UpdatePredecessors(this, newSuccPredeccessor);
+        trueSuccessor_->RemovePredecessor(this);
+        newSuccPredeccessor->SetTrueSuccessor(trueSuccessor_);
     }
     if (falseSuccessor_ != nullptr) {
-        falseSuccessor_->UpdatePredecessors(this, newSuccPredeccessor);
+        falseSuccessor_->RemovePredecessor(this);
+        newSuccPredeccessor->SetFalseSuccessor(trueSuccessor_);
     }
     trueSuccessor_ = newTrueSucc;
     if (newTrueSucc) {
@@ -89,11 +94,9 @@ void BasicBlock::UpdateDataFlow(BasicBlock *newTrueSucc, BasicBlock *newFalseSuc
     }
 }
 
-void BasicBlock::UpdatePredecessors(BasicBlock *oldPredecc, BasicBlock *newPredecc)
+void BasicBlock::RemovePredecessor(BasicBlock *oldPredecc)
 {
     [[maybe_unused]] auto removed = predecessors_.erase(oldPredecc);
-    ASSERT(removed == 1);
-    predecessors_.insert(newPredecc);
 }
 
 void BasicBlock::Dump(std::stringstream &ss) const

@@ -52,6 +52,9 @@ std::ostream &operator<<(std::ostream &os, const Opcode &op)
         case Opcode::CHECK:
             os << "Check";
             break;
+        case Opcode::CALL_STATIC:
+            os << "CallSt";
+            break;
         default:
             UNREACHABLE();
             break;

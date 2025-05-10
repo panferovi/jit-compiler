@@ -33,10 +33,7 @@ public:
         }
     }
 
-    void SetBasicBlock(BasicBlock *newBB)
-    {
-        ownBB_ = newBB;
-    }
+    void UpdateBasicBlock(BasicBlock *newBB);
 
     BasicBlock *GetBasicBlock() const
     {
@@ -168,7 +165,7 @@ public:
         : Instruction(ownBB, id, op, resType, inputs)
     {
         ASSERT(resType != ResultType::VOID);
-        ASSERT(inputs.size() == 2);
+        ASSERT(inputs.size() == 2 || inputs.size() == 0);
     }
 
     std::pair<bool, bool> CheckInputsAreConst();
@@ -184,7 +181,7 @@ public:
         : Instruction(ownBB, id, op, ResultType::BOOL, inputs), flags_(flags)
     {
         ASSERT(flags != CmpFlags::INVALID);
-        ASSERT(inputs.size() == 2);
+        ASSERT(inputs.size() == 2 || inputs.size() == 0);
     }
 
     CmpFlags GetCmpFlags() const
@@ -238,6 +235,8 @@ public:
     void ResolveDependency(Instruction *value, BasicBlock *bb);
 
     void UpdateDependencies(Instruction *oldValue, Instruction *newValue);
+
+    void UpdateValueBasicBlock(Instruction *value, BasicBlock *oldBB, BasicBlock *newBB);
 
     bool HasOnlyOneDependency();
 

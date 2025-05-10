@@ -124,7 +124,7 @@ CheckInst *IRBuilder::CreateBoundCheck(MemoryInst *mem, Instruction *idx)
     return CreateInstruction<CheckInst>(InstProxyList {mem, idx}, CheckType::BOUND);
 }
 
-CallStaticInst *IRBuilder::CreateCallStatic(MethodId id, InstProxyList args, ResultType retType)
+CallStaticInst *IRBuilder::CreateCallStatic(MethodId id, ResultType retType, InstProxyList args)
 {
     return CreateInstruction<CallStaticInst>(retType, args, id);
 }
